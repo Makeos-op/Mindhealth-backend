@@ -18,5 +18,5 @@ Actualmente, el proyecto se encuentra en la fase de **Configuración de Entorno 
 - **Backend:** Java 17+, Spring Boot 3.x
 - **Gestión de Dependencias:** Maven
 - **Base de Datos:** PostgreSQL
-- **Modelado:** IntelliJ IDEA / Bizagi
+- **Modelado:** IntelliJ IDEA
 - **Control de Versiones:** Git / GitHub
