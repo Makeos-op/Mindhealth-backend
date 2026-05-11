@@ -8,7 +8,8 @@ import com.upc.mind_health.dtos.G6_MH_PrivacidadDTO;
 import com.upc.mind_health.services.G6_MH_UsuarioService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import com.upc.mind_health.dtos.G6_MH_UsuarioPerfilDTO;
+import com.upc.mind_health.dtos.G6_MH_UsuarioActualizarDTO;
 @RestController
 @RequestMapping("/tp/mhg6/mhg6/usuarios")
 @RequiredArgsConstructor
@@ -22,6 +23,19 @@ public class G6_MH_UsuarioController {
     public ResponseEntity<String> registrar(@RequestBody G6_MH_UsuarioRegistroDTO dto) {
         String resultado = usuarioService.registrar(dto);
         return ResponseEntity.ok(resultado);
+    }
+    @GetMapping("/{id}")
+    @Operation(summary = "HU04 - Ver perfil del usuario")
+    public ResponseEntity<G6_MH_UsuarioPerfilDTO> obtenerPerfil(@PathVariable Long id) {
+        return ResponseEntity.ok(usuarioService.obtenerPerfil(id));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "HU04 - Actualizar información del perfil del usuario")
+    public ResponseEntity<G6_MH_UsuarioPerfilDTO> actualizarPerfil(
+            @PathVariable Long id,
+            @RequestBody G6_MH_UsuarioActualizarDTO dto) {
+        return ResponseEntity.ok(usuarioService.actualizarPerfil(id, dto));
     }
 
     @GetMapping("/verificar/{token}")
