@@ -69,7 +69,7 @@ public class G6_MH_UsuarioController {
     @Operation(summary = "HU04 - Editar perfil del usuario")
     public ResponseEntity<G6_MH_PerfilResponseDTO> actualizarPerfil(
             @PathVariable Long id,
-            @RequestBody G6_MH_PerfilResponseDTO dto) {
+            @RequestBody G6_MH_PerfilUpdateDTO dto) {
         G6_MH_PerfilResponseDTO perfil = usuarioService.actualizarPerfil(id, dto);
         return ResponseEntity.ok(perfil);
     }
