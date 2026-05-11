@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="4a0d9a64-5f9a-4512-9a40-5b5a5ffa759e" name="Changes" comment="feat(deployment): add Dockerfile and production profile for Render deployment" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ChangesViewManager">
+    <option name="groupingKeys">
+      <option value="directory" />
+      <option value="repository" />
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;AlexandraCasasU20223894&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/AlexandraCasasU20223894/MindHealth_G6.git&quot;,
+    &quot;accountId&quot;: &quot;283eacf9-3e19-4cbe-a33b-b39884b8c8e2&quot;
+  }
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 6
+}</component>
+  <component name="ProjectId" id="3DTGv6WDdAtFM0mNAq2syAG7SbL" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;develop&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/USUARIO/Downloads/mind-health&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;project.propVCSSupport.DirectoryMappings&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  },
+  &quot;keyToStringList&quot;: {
+    &quot;DatabaseDriversLRU&quot;: [
+      &quot;postgresql&quot;
+    ]
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\USUARIO\Downloads\mind-health\mind-health\src\main\java\com\upc\mind_health" />
+    </key>
+  </component>
+  <component name="RunManager">
+    <configuration name="MH_G6_BD.sql" type="DatabaseScript" editBeforeRun="true" nameIsGenerated="true">
+      <script-file value="$PROJECT_DIR$/database/MH_G6_BD.sql" />
+      <script-mode>FILE</script-mode>
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.25557.131" />
+        <option value="bundled-js-predefined-d6986cc7102b-b598e85cdad2-JavaScript-IU-252.25557.131" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="4a0d9a64-5f9a-4512-9a40-5b5a5ffa759e" name="Changes" comment="" />
+      <created>1778298873775</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1778298873775</updated>
+      <workItem from="1778343664249" duration="3579000" />
+      <workItem from="1778348397233" duration="3694000" />
+      <workItem from="1778468511800" duration="1974000" />
+      <workItem from="1778535218042" duration="354000" />
+    </task>
+    <task id="LOCAL-00001" summary="init: first commit to enable branching">
+      <option name="closed" value="true" />
+      <created>1778299551337</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1778299551337</updated>
+    </task>
+    <task id="LOCAL-00002" summary="build: apply gitignore rules and remove ide settings">
+      <option name="closed" value="true" />
+      <created>1778299978348</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1778299978348</updated>
+    </task>
+    <task id="LOCAL-00003" summary="feat: implement full database schema for 43 HUs">
+      <option name="closed" value="true" />
+      <created>1778345624167</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1778345624167</updated>
+    </task>
+    <task id="LOCAL-00004" summary="feat: initial project structure and complete database schema for Sprint 1">
+      <option name="closed" value="true" />
+      <created>1778348786059</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1778348786059</updated>
+    </task>
+    <task id="LOCAL-00005" summary="a">
+      <option name="closed" value="true" />
+      <created>1778348820009</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1778348820009</updated>
+    </task>
+    <task id="LOCAL-00006" summary="feat: initial project structure and complete database schema for Sprint 1">
+      <option name="closed" value="true" />
+      <created>1778348901543</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1778348901543</updated>
+    </task>
+    <task id="LOCAL-00007" summary="style: add project logo and update documentation">
+      <option name="closed" value="true" />
+      <created>1778350970067</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1778350970067</updated>
+    </task>
+    <task id="LOCAL-00008" summary="fix: move source code from test to main directory">
+      <option name="closed" value="true" />
+      <created>1778468782553</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1778468782553</updated>
+    </task>
+    <task id="LOCAL-00009" summary="feat(deployment): add Dockerfile and production profile for Render deployment">
+      <option name="closed" value="true" />
+      <created>1778535387031</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1778535387031</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <ignored-roots>
+      <path value="$PROJECT_DIR$" />
+    </ignored-roots>
+    <MESSAGE value="init: first commit to enable branching" />
+    <MESSAGE value="build: apply gitignore rules and remove ide settings" />
+    <MESSAGE value="feat: implement full database schema for 43 HUs" />
+    <MESSAGE value="a" />
+    <MESSAGE value="feat: initial project structure and complete database schema for Sprint 1" />
+    <MESSAGE value="style: add project logo and update documentation" />
+    <MESSAGE value="fix: move source code from test to main directory" />
+    <MESSAGE value="feat(deployment): add Dockerfile and production profile for Render deployment" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(deployment): add Dockerfile and production profile for Render deployment" />
+  </component>
+</project>
