@@ -1,10 +1,10 @@
-package mhg6.services;
+package com.upc.mind_health.services;
 
 import lombok.RequiredArgsConstructor;
-import mhg6.dtos.*;
-import mhg6.entities.G6_MH_Usuario;
-import mhg6.repositories.G6_MH_UsuarioRepository;
-import mhg6.security.G6_MH_JwtUtil;
+import com.upc.mind_health.dtos.*;
+import com.upc.mind_health.entities.G6_MH_Usuario;
+import com.upc.mind_health.repositories.G6_MH_UsuarioRepository;
+import com.upc.mind_health.security.G6_MH_JwtUtil;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -42,7 +42,7 @@ public class G6_MH_UsuarioService {
 
         return "Registro exitoso. Token de verificación (para pruebas): " + token;
     }
-    
+
     public String verificarCuenta(String token) {
         G6_MH_Usuario usuario = usuarioRepository.findByTokenVerificacion(token)
                 .orElseThrow(() -> new RuntimeException("Token inválido o cuenta ya activada"));
@@ -53,4 +53,5 @@ public class G6_MH_UsuarioService {
 
         return "Cuenta activada correctamente";
     }
+}
 

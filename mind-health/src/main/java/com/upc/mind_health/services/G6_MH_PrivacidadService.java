@@ -1,11 +1,11 @@
-package mhg6.services;
+package com.upc.mind_health.services;
 
 import lombok.RequiredArgsConstructor;
-import mhg6.dtos.G6_MH_PrivacidadDTO;
-import mhg6.entities.G6_MH_PrivacidadConfig;
-import mhg6.entities.G6_MH_Usuario;
-import mhg6.repositories.G6_MH_PrivacidadConfigRepository;
-import mhg6.repositories.G6_MH_UsuarioRepository;
+import com.upc.mind_health.dtos.G6_MH_PrivacidadDTO;
+import com.upc.mind_health.entities.G6_MH_PrivacidadConfig;
+import com.upc.mind_health.entities.G6_MH_Usuario;
+import com.upc.mind_health.repositories.G6_MH_PrivacidadConfigRepository;
+import com.upc.mind_health.repositories.G6_MH_UsuarioRepository;
 import org.springframework.stereotype.Service;
 
 @Service

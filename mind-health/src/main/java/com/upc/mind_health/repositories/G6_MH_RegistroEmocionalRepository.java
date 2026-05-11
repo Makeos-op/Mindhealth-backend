@@ -1,7 +1,7 @@
-package mhg6.repositories;
+package com.upc.mind_health.repositories;
 
-import mhg6.entities.G6_MH_RegistroEmocional;
-import mhg6.entities.G6_MH_Usuario;
+import com.upc.mind_health.entities.G6_MH_RegistroEmocional;
+import com.upc.mind_health.entities.G6_MH_Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

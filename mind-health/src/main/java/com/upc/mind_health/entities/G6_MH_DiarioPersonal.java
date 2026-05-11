@@ -20,7 +20,7 @@ public class G6_MH_DiarioPersonal {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_usuario", nullable = false)
-    private mhg6.entities.G6_MH_Usuario usuario;
+    private com.upc.mind_health.entities.G6_MH_Usuario usuario;
 
     @Column(nullable = false, length = 50)
     private String titulo;

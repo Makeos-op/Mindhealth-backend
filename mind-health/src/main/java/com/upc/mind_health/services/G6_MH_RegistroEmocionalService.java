@@ -1,13 +1,13 @@
-package mhg6.services;
+package com.upc.mind_health.services;
 
 import lombok.RequiredArgsConstructor;
-import mhg6.dtos.G6_MH_RegistroEmocionalRequestDTO;
-import mhg6.dtos.G6_MH_RegistroEmocionalResponseDTO;
-import mhg6.dtos.G6_MH_UsuarioReducidoDTO;
-import mhg6.entities.G6_MH_RegistroEmocional;
-import mhg6.entities.G6_MH_Usuario;
-import mhg6.repositories.G6_MH_RegistroEmocionalRepository;
-import mhg6.repositories.G6_MH_UsuarioRepository;
+import com.upc.mind_health.dtos.G6_MH_RegistroEmocionalRequestDTO;
+import com.upc.mind_health.dtos.G6_MH_RegistroEmocionalResponseDTO;
+import com.upc.mind_health.dtos.G6_MH_UsuarioReducidoDTO;
+import com.upc.mind_health.entities.G6_MH_RegistroEmocional;
+import com.upc.mind_health.entities.G6_MH_Usuario;
+import com.upc.mind_health.repositories.G6_MH_RegistroEmocionalRepository;
+import com.upc.mind_health.repositories.G6_MH_UsuarioRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;

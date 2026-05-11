@@ -1,3 +1,5 @@
+package com.upc.mind_health.dtos;
+
 import lombok.*;
 
 @Data

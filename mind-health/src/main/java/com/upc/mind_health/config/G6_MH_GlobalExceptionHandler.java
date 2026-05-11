@@ -1,4 +1,4 @@
-package mhg6.config;
+package com.upc.mind_health.config;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

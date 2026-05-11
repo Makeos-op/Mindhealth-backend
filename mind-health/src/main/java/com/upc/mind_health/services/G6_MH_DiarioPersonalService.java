@@ -11,8 +11,8 @@ import com.upc.mind_health.entities.G6_MH_DiarioPersonal;
 import com.upc.mind_health.repositories.G6_MH_DiarioPersonalRepository;
 
 
-import mhg6.entities.G6_MH_Usuario;
-import mhg6.repositories.G6_MH_UsuarioRepository;
+import com.upc.mind_health.entities.G6_MH_Usuario;
+import com.upc.mind_health.repositories.G6_MH_UsuarioRepository;
 
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;

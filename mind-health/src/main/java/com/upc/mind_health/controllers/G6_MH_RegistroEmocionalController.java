@@ -1,18 +1,18 @@
-package mhg6.controllers;
+package com.upc.mind_health.controllers;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import mhg6.dtos.G6_MH_RegistroEmocionalRequestDTO;
-import mhg6.dtos.G6_MH_RegistroEmocionalResponseDTO;
-import mhg6.services.G6_MH_RegistroEmocionalService;
+import com.upc.mind_health.dtos.G6_MH_RegistroEmocionalRequestDTO;
+import com.upc.mind_health.dtos.G6_MH_RegistroEmocionalResponseDTO;
+import com.upc.mind_health.services.G6_MH_RegistroEmocionalService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/tp/mhg6/mhg6/emociones")
+@RequestMapping("/tp/com.upc.mind_health/com.upc.mind_health/emociones")
 @RequiredArgsConstructor
 @Tag(name = "Emociones", description = "Registro de emociones diarias - HU15")
 public class G6_MH_RegistroEmocionalController {

@@ -1,4 +1,4 @@
-package mhg6.dtos;
+package com.upc.mind_health.dtos;
 
 import lombok.*;
 

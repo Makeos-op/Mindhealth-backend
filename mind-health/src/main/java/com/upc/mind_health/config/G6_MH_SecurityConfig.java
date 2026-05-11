@@ -1,8 +1,8 @@
-package mhg6.config;
+package com.upc.mind_health.config;
 
 import lombok.RequiredArgsConstructor;
-import mhg6.security.G6_MH_JwtFilter;
-import mhg6.services.G6_MH_UsuarioDetailsService;
+import com.upc.mind_health.security.G6_MH_JwtFilter;
+import com.upc.mind_health.services.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;

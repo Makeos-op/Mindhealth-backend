@@ -1,4 +1,4 @@
-package mhg6.security;
+package com.upc.mind_health.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;

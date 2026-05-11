@@ -1,10 +1,11 @@
-package mhg6.controllers;
+package com.upc.mind_health.controllers;
 
+import com.upc.mind_health.dtos.G6_MH_UsuarioRegistroDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import mhg6.dtos.*;
-import mhg6.services.G6_MH_UsuarioService;
+import com.upc.mind_health.dtos.G6_MH_PrivacidadDTO;
+import com.upc.mind_health.services.G6_MH_UsuarioService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 

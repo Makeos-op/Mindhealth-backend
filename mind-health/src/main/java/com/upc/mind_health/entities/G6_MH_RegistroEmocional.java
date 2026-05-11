@@ -1,4 +1,4 @@
-package mhg6.entities;
+package com.upc.mind_health.entities;
 
 import jakarta.persistence.*;
 import lombok.*;
