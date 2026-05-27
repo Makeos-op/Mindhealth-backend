@@ -12,4 +12,5 @@ public class G6_MH_UsuarioRegistroDTO {
     private String contrasena;
     private Integer edad;
     private String genero;
+    private String rol;
 }
