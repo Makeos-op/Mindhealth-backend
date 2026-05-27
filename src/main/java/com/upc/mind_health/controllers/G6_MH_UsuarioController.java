@@ -1,69 +1,59 @@
 package com.upc.mind_health.controllers;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
-import com.upc.mind_health.dtos.*;
+import com.upc.mind_health.entities.G6_MH_Usuario;
 import com.upc.mind_health.services.G6_MH_UsuarioService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
-@RequestMapping("/tp/mhg6/mhg6/usuarios")
-@RequiredArgsConstructor
-@Tag(name = "Usuarios", description = "Gestión de usuarios - HU01, HU02, HU03, HU04")
+@RequestMapping("/api/auth")
+@CrossOrigin(origins = "*") // Permite la conexión con tu Frontend de Angular/React
 public class G6_MH_UsuarioController {
 
-    private final G6_MH_UsuarioService usuarioService;
+    @Autowired
+    private G6_MH_UsuarioService usuarioService;
 
+    // POST: /api/auth/registro (Escenario 1)
     @PostMapping("/registro")
-    @Operation(summary = "HU01 - Registrar nuevo usuario con verificación de cuenta")
-    public ResponseEntity<String> registrar(@RequestBody G6_MH_UsuarioRegistroDTO dto) {
-        String resultado = usuarioService.registrar(dto);
-        return ResponseEntity.ok(resultado);
+    public ResponseEntity<?> registrar(@RequestBody G6_MH_Usuario usuario) {
+        try {
+            G6_MH_Usuario registrado = usuarioService.registrarUsuario(usuario);
+
+            Map<String, Object> respuesta = new HashMap<>();
+            respuesta.put("mensaje", "Registro exitoso. Se ha enviado un correo de confirmación."); // <-- SOLUCIÓN
+            respuesta.put("usuarioId", registrado.getIdUsuario()); // <-- SOLUCIÓN
+            respuesta.put("correo", registrado.getCorreo());
+
+            return new ResponseEntity<>(respuesta, HttpStatus.CREATED);
+        } catch (Exception e) {
+            Map<String, String> errorRespuesta = new HashMap<>();
+            errorRespuesta.put("error", e.getMessage());
+            return new ResponseEntity<>(errorRespuesta, HttpStatus.BAD_REQUEST);
+        }
     }
 
-    @GetMapping("/verificar/{token}")
-    @Operation(summary = "HU01 - Activar cuenta mediante token de verificación")
-    public ResponseEntity<String> verificar(@PathVariable String token) {
-        String resultado = usuarioService.verificarCuenta(token);
-        return ResponseEntity.ok(resultado);
-    }
-
-    @PostMapping("/login")
-    @Operation(summary = "HU02 - Inicio de sesión de usuario registrado")
-    public ResponseEntity<G6_MH_AuthResponseDTO> login(@RequestBody G6_MH_LoginDTO dto) {
-        G6_MH_AuthResponseDTO response = usuarioService.login(dto);
-        return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/recuperar-password")
-    @Operation(summary = "HU03 - Solicitar recuperación de contraseña")
-    public ResponseEntity<String> recuperarPassword(@RequestBody G6_MH_RecuperarPasswordDTO dto) {
-        String resultado = usuarioService.solicitarRecuperacion(dto.getCorreo());
-        return ResponseEntity.ok(resultado);
-    }
-
-    @PostMapping("/reset-password")
-    @Operation(summary = "HU03 - Restablecer contraseña con token")
-    public ResponseEntity<String> resetPassword(@RequestBody G6_MH_ResetPasswordDTO dto) {
-        String resultado = usuarioService.resetPassword(dto);
-        return ResponseEntity.ok(resultado);
-    }
-
-    @GetMapping("/{id}")
-    @Operation(summary = "HU04 - Ver perfil del usuario")
-    public ResponseEntity<G6_MH_PerfilResponseDTO> obtenerPerfil(@PathVariable Long id) {
-        G6_MH_PerfilResponseDTO perfil = usuarioService.obtenerPerfil(id);
-        return ResponseEntity.ok(perfil);
-    }
-
-    @PutMapping("/{id}")
-    @Operation(summary = "HU04 - Editar perfil del usuario")
-    public ResponseEntity<G6_MH_PerfilResponseDTO> actualizarPerfil(
-            @PathVariable Long id,
-            @RequestBody G6_MH_PerfilUpdateDTO dto) {
-        G6_MH_PerfilResponseDTO perfil = usuarioService.actualizarPerfil(id, dto);
-        return ResponseEntity.ok(perfil);
+    // GET: /api/auth/verificar?token=xyz (Escenario 2)
+    @GetMapping("/verificar")
+    public ResponseEntity<?> verificarCuenta(@RequestParam("token") String token) {
+        try {
+            boolean verificado = usuarioService.verificarCuenta(token);
+            if (verificado) {
+                // Redirige automáticamente al usuario a la interfaz de login del Frontend
+                // Cambia "http://localhost:4200/login" por la URL real de tu frontend
+                return ResponseEntity.status(HttpStatus.FOUND)
+                        .location(URI.create("http://localhost:4200/login?verificado=true"))
+                        .build();
+            }
+            return new ResponseEntity<>("No se pudo verificar la cuenta.", HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            // Si el token falló o expiró, redirige o muestra el error
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
     }
 }
