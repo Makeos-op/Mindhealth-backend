@@ -1,24 +1,37 @@
 package com.upc.mind_health.controllers;
 
+import com.upc.mind_health.dtos.G6_MH_AuthResponseDTO;
+import com.upc.mind_health.dtos.G6_MH_LoginDTO;
 import com.upc.mind_health.dtos.G6_MH_UsuarioRegistroDTO;
 import com.upc.mind_health.entities.G6_MH_Usuario;
+import com.upc.mind_health.repositories.G6_MH_UsuarioRepository;
 import com.upc.mind_health.services.G6_MH_UsuarioService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.web.bind.annotation.*;
+import com.upc.mind_health.security.G6_MH_JwtUtil;
 
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "*")
-@Tag(name = "Usuarios y Autenticación", description = "Endpoints para el registro y activación de cuentas (HU-01)")
+@Tag(name = "Usuarios y Autenticación", description = "Endpoints para el registro y activación de cuentas")
 public class G6_MH_UsuarioController {
+
+    @Autowired
+    private AuthenticationManager authenticationManager;
+
+    @Autowired
+    private G6_MH_UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private G6_MH_JwtUtil jwtUtil;
 
     @Autowired
     private G6_MH_UsuarioService usuarioService;
@@ -65,6 +78,59 @@ public class G6_MH_UsuarioController {
 
             respuesta.put("error", "No se pudo verificar la cuenta.");
             return new ResponseEntity<>(respuesta, HttpStatus.BAD_REQUEST);
+
+        } catch (Exception e) {
+            Map<String, String> errorRespuesta = new HashMap<>();
+            errorRespuesta.put("error", e.getMessage());
+            return new ResponseEntity<>(errorRespuesta, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    // POST: /api/auth/login (HU-02 - Escenarios 1 y 2)
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@jakarta.validation.Valid @RequestBody G6_MH_LoginDTO loginDTO) {
+        try {
+            // ESCENARIO 1: Spring Security valida automáticamente correo y contraseña (hash BCrypt)
+            org.springframework.security.core.Authentication authentication = authenticationManager.authenticate(
+                    new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                            loginDTO.getCorreo(),
+                            loginDTO.getContrasena()
+                    )
+            );
+
+            // Si pasa la línea anterior, las credenciales son válidas. Obtenemos los datos del usuario de la sesión.
+            org.springframework.security.core.userdetails.User userDetails =
+                    (org.springframework.security.core.userdetails.User) authentication.getPrincipal();
+
+            // Buscamos el usuario completo en la BD para sacar su ID y Nombre real para tu AuthResponseDTO
+            G6_MH_Usuario usuario = usuarioRepository.findByCorreo(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado post-autenticación."));
+
+            // Generamos el token JWT usando tu JwtUtil
+            String tokenJwt = jwtUtil.generateToken(usuario.getCorreo());
+
+            // Construimos tu G6_MH_AuthResponseDTO usando el Builder de Lombok
+            G6_MH_AuthResponseDTO respuesta = G6_MH_AuthResponseDTO.builder()
+                    .token(tokenJwt)
+                    .mensaje("Inicio de sesión exitoso. ¡Bienvenido(a) a Mind Health!")
+                    .idUsuario(usuario.getIdUsuario())
+                    .nombre(usuario.getNombre())
+                    .correo(usuario.getCorreo())
+                    .build();
+
+            return new ResponseEntity<>(respuesta, HttpStatus.OK);
+
+        } catch (org.springframework.security.authentication.BadCredentialsException e) {
+            // ESCENARIO 2: Si las credenciales no coinciden, salta esta excepción automática
+            Map<String, String> errorRespuesta = new HashMap<>();
+            errorRespuesta.put("error", "Las credenciales ingresadas no son válidas. Verifique su correo o contraseña.");
+            return new ResponseEntity<>(errorRespuesta, HttpStatus.UNAUTHORIZED); // 401 Unauthorized
+
+        } catch (org.springframework.security.authentication.DisabledException e) {
+            // Extra por seguridad (HU-01): Cuenta registrada pero que no ha sido verificada en el correo
+            Map<String, String> errorRespuesta = new HashMap<>();
+            errorRespuesta.put("error", "Esta cuenta no se encuentra activa. Revise su correo para verificarla.");
+            return new ResponseEntity<>(errorRespuesta, HttpStatus.FORBIDDEN); // 403 Forbidden
 
         } catch (Exception e) {
             Map<String, String> errorRespuesta = new HashMap<>();

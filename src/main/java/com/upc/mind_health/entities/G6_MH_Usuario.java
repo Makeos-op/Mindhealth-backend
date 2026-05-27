@@ -34,9 +34,11 @@ public class G6_MH_Usuario {
     @Column(name = "fecha_registro")
     private LocalDateTime fechaRegistro;
 
+    @Builder.Default
     @Column(name = "activo", nullable = false)
     private Boolean activo = false;
 
+    @Builder.Default
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "usuario_rol", // Nombre de la tabla intermedia
@@ -45,10 +47,7 @@ public class G6_MH_Usuario {
     )
     private Set<G6_MH_Rol> roles = new HashSet<>();
 
-    // --- CAMPOS DE VALIDACIÓN PARA HU DE SEGURIDAD ---
-    @Column(name = "token_activacion", length = 255)
-    private String tokenActivacion;
-
-    @Column(name = "fecha_expiracion_token")
-    private LocalDateTime fechaExpiracionToken;
+    @Builder.Default
+    @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<G6_MH_Token> tokens = new ArrayList<>();
 }
