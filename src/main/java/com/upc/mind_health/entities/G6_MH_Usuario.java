@@ -50,4 +50,7 @@ public class G6_MH_Usuario {
     @Builder.Default
     @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<G6_MH_Token> tokens = new ArrayList<>();
+
+    @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<G6_MH_SesionTerapia> sesiones;
 }

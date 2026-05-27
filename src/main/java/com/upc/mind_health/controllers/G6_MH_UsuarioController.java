@@ -1,10 +1,9 @@
 package com.upc.mind_health.controllers;
 
-import com.upc.mind_health.dtos.G6_MH_AuthResponseDTO;
-import com.upc.mind_health.dtos.G6_MH_LoginDTO;
-import com.upc.mind_health.dtos.G6_MH_UsuarioRegistroDTO;
+import com.upc.mind_health.dtos.*;
 import com.upc.mind_health.entities.G6_MH_Usuario;
 import com.upc.mind_health.repositories.G6_MH_UsuarioRepository;
+import com.upc.mind_health.security.G6_MH_AuthResponseDTO;
 import com.upc.mind_health.services.G6_MH_UsuarioService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -38,7 +37,7 @@ public class G6_MH_UsuarioController {
 
     // POST: /api/auth/registro (Escenario 1)
     @PostMapping("/registro")
-    public ResponseEntity<?> registrar(@Valid @RequestBody G6_MH_UsuarioRegistroDTO request) {
+    public ResponseEntity<?> registrar(@RequestBody G6_MH_UsuarioRegistroDTO request) {
         try {
             G6_MH_Usuario nuevoUsuario = new G6_MH_Usuario();
             nuevoUsuario.setNombre(request.getNombre());
@@ -131,6 +130,42 @@ public class G6_MH_UsuarioController {
             Map<String, String> errorRespuesta = new HashMap<>();
             errorRespuesta.put("error", "Esta cuenta no se encuentra activa. Revise su correo para verificarla.");
             return new ResponseEntity<>(errorRespuesta, HttpStatus.FORBIDDEN); // 403 Forbidden
+
+        } catch (Exception e) {
+            Map<String, String> errorRespuesta = new HashMap<>();
+            errorRespuesta.put("error", e.getMessage());
+            return new ResponseEntity<>(errorRespuesta, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    // POST: /api/auth/solicitar-recuperacion (HU-03 - Escenario 1)
+    @PostMapping("/solicitar-recuperacion")
+    public ResponseEntity<?> solicitarRecuperacion(@RequestBody G6_MH_RecuperarPasswordDTO dto) {
+        try {
+            // Usamos el .getCorreo() de tu DTO
+            usuarioService.solicitarRecuperacion(dto.getCorreo());
+
+            Map<String, String> respuesta = new HashMap<>();
+            respuesta.put("mensaje", "Se han enviado las instrucciones de recuperación al correo proporcionado.");
+            return new ResponseEntity<>(respuesta, HttpStatus.OK);
+
+        } catch (Exception e) {
+            Map<String, String> errorRespuesta = new HashMap<>();
+            errorRespuesta.put("error", e.getMessage());
+            return new ResponseEntity<>(errorRespuesta, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    // POST: /api/auth/restablecer (HU-03 - Escenario 2)
+    @PostMapping("/restablecer")
+    public ResponseEntity<?> restablecerContrasena(@RequestBody G6_MH_ResetPasswordDTO dto) {
+        try {
+            // Usamos el .getToken() y .getNuevaContrasena() de tu DTO
+            usuarioService.restablecerContrasena(dto.getToken(), dto.getNuevaContrasena());
+
+            Map<String, String> respuesta = new HashMap<>();
+            respuesta.put("mensaje", "Contraseña actualizada con éxito. Ya puede iniciar sesión con su nueva clave.");
+            return new ResponseEntity<>(respuesta, HttpStatus.OK);
 
         } catch (Exception e) {
             Map<String, String> errorRespuesta = new HashMap<>();

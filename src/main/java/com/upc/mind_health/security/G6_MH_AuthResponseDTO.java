@@ -1,4 +1,4 @@
-package com.upc.mind_health.dtos;
+package com.upc.mind_health.security;
 
 import lombok.*;
 

@@ -9,5 +9,4 @@ import java.util.Optional;
 @Repository
 public interface G6_MH_UsuarioRepository extends JpaRepository<G6_MH_Usuario, Long> {
     Optional<G6_MH_Usuario> findByCorreo(String correo);
-    Optional<G6_MH_Usuario> findByTokenActivacion(String token);
 }
