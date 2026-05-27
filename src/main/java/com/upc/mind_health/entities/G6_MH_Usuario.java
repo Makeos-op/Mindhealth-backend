@@ -3,6 +3,7 @@ package com.upc.mind_health.entities;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.*;
+import java.util.*;
 
 @Entity
 @Table(name = "usuario")
@@ -33,11 +34,16 @@ public class G6_MH_Usuario {
     @Column(name = "fecha_registro")
     private LocalDateTime fechaRegistro;
 
-    @Column(nullable = false)
-    private String rol;
-
     @Column(name = "activo", nullable = false)
     private Boolean activo = false;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "usuario_rol", // Nombre de la tabla intermedia
+            joinColumns = @JoinColumn(name = "id_usuario"),
+            inverseJoinColumns = @JoinColumn(name = "id_rol")
+    )
+    private Set<G6_MH_Rol> roles = new HashSet<>();
 
     // --- CAMPOS DE VALIDACIÓN PARA HU DE SEGURIDAD ---
     @Column(name = "token_activacion", length = 255)

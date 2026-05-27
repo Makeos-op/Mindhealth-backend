@@ -1,6 +1,8 @@
 package com.upc.mind_health.services;
 
+import com.upc.mind_health.entities.G6_MH_Rol;
 import com.upc.mind_health.entities.G6_MH_Usuario;
+import com.upc.mind_health.repositories.G6_MH_RolRepository;
 import com.upc.mind_health.repositories.G6_MH_UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,6 +18,9 @@ public class G6_MH_UsuarioService {
     @Autowired
     private G6_MH_UsuarioRepository usuarioRepository;
 
+    @Autowired
+    private G6_MH_RolRepository rolRepository;
+
     // ESCENARIO 1: Registro de usuario y generación de Token
     @Autowired
     private PasswordEncoder passwordEncoder; // <--- Inyectamos el encriptador de Spring Security
@@ -27,14 +32,18 @@ public class G6_MH_UsuarioService {
             throw new RuntimeException("El correo ya se encuentra registrado.");
         }
 
-        // ¡Aquí se activa la magia de la encriptación!
-        String contrasenaEncriptada = passwordEncoder.encode(nuevoUsuario.getContrasena());
-        nuevoUsuario.setContrasena(contrasenaEncriptada);
-
-        // Configurar metadatos y fechas
+        // Encriptar contraseña
+        nuevoUsuario.setContrasena(passwordEncoder.encode(nuevoUsuario.getContrasena()));
         nuevoUsuario.setActivo(false);
-        nuevoUsuario.setFechaRegistro(LocalDateTime.now()); // O LocalDateTime según lo que hayas elegido
+        nuevoUsuario.setFechaRegistro(LocalDateTime.now());
 
+        // ASIGNACIÓN DEL ROL POR DEFECTO (HU-01)
+        G6_MH_Rol rolPaciente = rolRepository.findByName("ROLE_PACIENTE")
+                .orElseThrow(() -> new RuntimeException("Error: El rol ROLE_PACIENTE no está inicializado en la base de datos."));
+
+        nuevoUsuario.getRoles().add(rolPaciente); // Se agrega al Set ManyToMany
+
+        // Guardar tokens de activación...
         String tokenUnico = UUID.randomUUID().toString();
         nuevoUsuario.setTokenActivacion(tokenUnico);
         nuevoUsuario.setFechaExpiracionToken(LocalDateTime.now().plusHours(24));

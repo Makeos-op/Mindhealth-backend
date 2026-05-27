@@ -1,7 +1,10 @@
 package com.upc.mind_health.controllers;
 
+import com.upc.mind_health.dtos.G6_MH_UsuarioRegistroDTO;
 import com.upc.mind_health.entities.G6_MH_Usuario;
 import com.upc.mind_health.services.G6_MH_UsuarioService;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +16,8 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "*") // Permite la conexión con tu Frontend de Angular/React
+@CrossOrigin(origins = "*")
+@Tag(name = "Usuarios y Autenticación", description = "Endpoints para el registro y activación de cuentas (HU-01)")
 public class G6_MH_UsuarioController {
 
     @Autowired
@@ -21,16 +25,24 @@ public class G6_MH_UsuarioController {
 
     // POST: /api/auth/registro (Escenario 1)
     @PostMapping("/registro")
-    public ResponseEntity<?> registrar(@RequestBody G6_MH_Usuario usuario) {
+    public ResponseEntity<?> registrar(@Valid @RequestBody G6_MH_UsuarioRegistroDTO request) {
         try {
-            G6_MH_Usuario registrado = usuarioService.registrarUsuario(usuario);
+            G6_MH_Usuario nuevoUsuario = new G6_MH_Usuario();
+            nuevoUsuario.setNombre(request.getNombre());
+            nuevoUsuario.setCorreo(request.getCorreo());
+            nuevoUsuario.setContrasena(request.getContrasena());
+            nuevoUsuario.setEdad(request.getEdad());
+            nuevoUsuario.setGenero(request.getGenero());
+
+            G6_MH_Usuario registrado = usuarioService.registrarUsuario(nuevoUsuario);
 
             Map<String, Object> respuesta = new HashMap<>();
-            respuesta.put("mensaje", "Registro exitoso. Se ha enviado un correo de confirmación."); // <-- SOLUCIÓN
-            respuesta.put("usuarioId", registrado.getIdUsuario()); // <-- SOLUCIÓN
+            respuesta.put("mensaje", "Registro exitoso. Se ha enviado un correo de confirmación.");
+            respuesta.put("usuarioId", registrado.getIdUsuario());
             respuesta.put("correo", registrado.getCorreo());
 
             return new ResponseEntity<>(respuesta, HttpStatus.CREATED);
+
         } catch (Exception e) {
             Map<String, String> errorRespuesta = new HashMap<>();
             errorRespuesta.put("error", e.getMessage());
@@ -43,17 +55,21 @@ public class G6_MH_UsuarioController {
     public ResponseEntity<?> verificarCuenta(@RequestParam("token") String token) {
         try {
             boolean verificado = usuarioService.verificarCuenta(token);
+
+            Map<String, String> respuesta = new HashMap<>();
             if (verificado) {
-                // Redirige automáticamente al usuario a la interfaz de login del Frontend
-                // Cambia "http://localhost:4200/login" por la URL real de tu frontend
-                return ResponseEntity.status(HttpStatus.FOUND)
-                        .location(URI.create("http://localhost:4200/login?verificado=true"))
-                        .build();
+                respuesta.put("mensaje", "Cuenta activada con éxito. Ya puede iniciar sesión en la plataforma.");
+                respuesta.put("estado", "ACTIVO");
+                return new ResponseEntity<>(respuesta, HttpStatus.OK); // <--- Cambiado a 200 OK con JSON
             }
-            return new ResponseEntity<>("No se pudo verificar la cuenta.", HttpStatus.BAD_REQUEST);
+
+            respuesta.put("error", "No se pudo verificar la cuenta.");
+            return new ResponseEntity<>(respuesta, HttpStatus.BAD_REQUEST);
+
         } catch (Exception e) {
-            // Si el token falló o expiró, redirige o muestra el error
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+            Map<String, String> errorRespuesta = new HashMap<>();
+            errorRespuesta.put("error", e.getMessage());
+            return new ResponseEntity<>(errorRespuesta, HttpStatus.BAD_REQUEST);
         }
     }
 }

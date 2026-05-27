@@ -1,4 +1,4 @@
-package com.upc.mind_health.config;
+package com.upc.mind_health.security;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
