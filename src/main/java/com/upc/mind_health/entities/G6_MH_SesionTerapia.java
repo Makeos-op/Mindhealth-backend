@@ -21,6 +21,7 @@ public class G6_MH_SesionTerapia {
 
     private String ultimaEmocionDetectada;
     private String nivelUrgenciaActual;
+    private String estado;
 
     @ManyToOne
     @JoinColumn(name = "id_usuario", nullable = false)

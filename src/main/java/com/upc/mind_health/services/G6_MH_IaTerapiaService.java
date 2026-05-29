@@ -3,8 +3,10 @@ package com.upc.mind_health.services;
 import com.upc.mind_health.dtos.G6_MH_ChatResponseDTO;
 import com.upc.mind_health.entities.G6_MH_MensajeChat;
 import com.upc.mind_health.entities.G6_MH_SesionTerapia;
+import com.upc.mind_health.entities.G6_MH_Usuario;
 import com.upc.mind_health.repositories.G6_MH_MensajeChatRepository;
 import com.upc.mind_health.repositories.G6_MH_SesionTerapiaRepository;
+import com.upc.mind_health.repositories.G6_MH_UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -23,7 +25,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class G6_MH_IaTerapiaService {
-
+    private final G6_MH_UsuarioRepository usuarioRepository;
     private final G6_MH_SesionTerapiaRepository sesionRepository;
     private final G6_MH_MensajeChatRepository mensajeRepository;
 
@@ -39,8 +41,23 @@ public class G6_MH_IaTerapiaService {
         }
 
         // 1. PERSISTENCIA EXACTA: Buscar la sesión usando el idSesion que viene del controlador
-        G6_MH_SesionTerapia sesion = sesionRepository.findById(idSesion)
-                .orElseThrow(() -> new RuntimeException("La sesión de terapia con ID " + idSesion + " no existe en el sistema."));
+        G6_MH_SesionTerapia sesion;
+        if (idSesion == null || !sesionRepository.existsById(idSesion)) {
+            // Si no mandan ID o el ID no existe, el sistema CREA la primera sesión automáticamente
+            // Nota: Aquí buscamos al usuario con ID 1 (el paciente que inició sesión en la app)
+            G6_MH_Usuario usuarioLogueado = usuarioRepository.findById(1L)
+                    .orElseThrow(() -> new RuntimeException("Usuario base no encontrado. Asegúrate de tener al menos un usuario en la BD."));
+
+            sesion = sesionRepository.save(G6_MH_SesionTerapia.builder()
+                    .usuario(usuarioLogueado)
+                    .fechaInicio(LocalDateTime.now())
+                    .ultimaEmocionDetectada("Ninguna (Sesión Inicial)")
+                    .nivelUrgenciaActual("BAJO")
+                    .build());
+        } else {
+            // Si la sesión ya existía, simplemente la recuperamos para continuar la conversación
+            sesion = sesionRepository.findById(idSesion).get();
+        }
 
         // 2. PERSISTENCIA PACIENTE: Registrar lo que el usuario escribió
         G6_MH_MensajeChat mensajePaciente = G6_MH_MensajeChat.builder()
@@ -188,5 +205,35 @@ public class G6_MH_IaTerapiaService {
             }
         }
         return "";
+    }
+
+    @Transactional
+    public Long obtenerOCrearSesionActiva(Long idUsuario) {
+        // 1. Buscamos si ya tiene un chat abierto
+        return sesionRepository.findByUsuarioIdUsuarioAndEstado(idUsuario, "ACTIVA")
+                .map(G6_MH_SesionTerapia::getIdSesion) // Si existe, devolvemos su ID
+                .orElseGet(() -> {
+                    // Si no existe, creamos una nueva sesión desde cero
+                    G6_MH_Usuario usuario = usuarioRepository.findById(idUsuario)
+                            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+                    G6_MH_SesionTerapia nuevaSesion = sesionRepository.save(G6_MH_SesionTerapia.builder()
+                            .usuario(usuario)
+                            .fechaInicio(LocalDateTime.now())
+                            .estado("ACTIVA")
+                            .ultimaEmocionDetectada("Ninguna (Inicial)")
+                            .nivelUrgenciaActual("BAJO")
+                            .build());
+                    return nuevaSesion.getIdSesion();
+                });
+    }
+
+    @Transactional
+    public void finalizarSesionTerapia(Long idSesion) {
+        G6_MH_SesionTerapia sesion = sesionRepository.findById(idSesion)
+                .orElseThrow(() -> new RuntimeException("Sesión no encontrada"));
+
+        sesion.setEstado("FINALIZADA");
+        sesionRepository.save(sesion);
     }
 }

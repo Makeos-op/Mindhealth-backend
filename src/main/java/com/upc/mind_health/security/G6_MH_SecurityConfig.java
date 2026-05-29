@@ -35,12 +35,21 @@ public class G6_MH_SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        // 1. Endpoints Públicos (Acceso libre para Login, Registro y Swagger)
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/api-docs/**")
-                        .permitAll()
-                        .requestMatchers("/api/usuario/**", "/api/terapia-ia/**").authenticated()
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/api-docs/**").permitAll()
+
+                        // 2. Endpoints del Chat de IA: Exclusivos para el rol PACIENTE 🛡️
+                        .requestMatchers("/api/terapia-ia/**").hasRole("PACIENTE")
+
+                        // 3. Endpoints generales de Usuario: Requieren estar autenticado
+                        .requestMatchers("/api/usuario/**").authenticated()
+
+                        // Cualquier otra petición no mapeada requerirá token válido
                         .anyRequest().authenticated()
                 );
+
+        // Filtro personalizado JWT antes del filtro nativo de Spring
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
