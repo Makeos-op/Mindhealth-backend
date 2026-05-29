@@ -57,6 +57,10 @@ public class G6_MH_IaTerapiaService {
         } else {
             // Si la sesión ya existía, simplemente la recuperamos para continuar la conversación
             sesion = sesionRepository.findById(idSesion).get();
+
+            if ("FINALIZADA".equals(sesion.getEstado())) {
+                throw new RuntimeException("No se pueden enviar mensajes a una sesión que ya ha sido FINALIZADA.");
+            }
         }
 
         // 2. PERSISTENCIA PACIENTE: Registrar lo que el usuario escribió
