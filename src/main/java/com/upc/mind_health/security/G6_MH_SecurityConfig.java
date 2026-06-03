@@ -37,15 +37,16 @@ public class G6_MH_SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 1. Endpoints Públicos (Acceso libre para Login, Registro y Swagger)
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
+                                "/api-docs/**", "/api/politicas/**").permitAll()
 
-                        // 2. Endpoints del Chat de IA: Exclusivos para el rol PACIENTE 🛡️
-                        .requestMatchers("/api/terapia-ia/**").hasRole("PACIENTE")
+                        // 2. Endpoints exclusivos para el rol PACIENTE
+                        .requestMatchers("/api/terapia-ia/**","/api/analisis-emocional/**",
+                                "/api/emociones/**", "/api/privacidad/**", "/api/seguridad/**").hasAuthority("ROLE_PACIENTE")
 
                         // 3. Endpoints generales de Usuario: Requieren estar autenticado
                         .requestMatchers("/api/usuario/**").authenticated()
 
-                        // Cualquier otra petición no mapeada requerirá token válido
                         .anyRequest().authenticated()
                 );
 

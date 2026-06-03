@@ -9,6 +9,7 @@ import com.upc.mind_health.entities.G6_MH_Usuario;
 import com.upc.mind_health.repositories.G6_MH_RegistroEmocionalRepository;
 import com.upc.mind_health.repositories.G6_MH_UsuarioRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -21,6 +22,7 @@ public class G6_MH_RegistroEmocionalService {
     private final G6_MH_RegistroEmocionalRepository registroRepository;
     private final G6_MH_UsuarioRepository usuarioRepository;
 
+    @Transactional
     public G6_MH_RegistroEmocionalResponseDTO registrarEmocion(G6_MH_RegistroEmocionalRequestDTO dto) {
         G6_MH_Usuario usuario = usuarioRepository.findById(dto.getIdUsuario())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
@@ -29,7 +31,8 @@ public class G6_MH_RegistroEmocionalService {
                 .usuario(usuario)
                 .emocion(dto.getEmocion())
                 .descripcion(dto.getDescripcion())
-                .fecha(LocalDate.now())
+                .fecha(LocalDate.now()) // Se asigna automáticamente la fecha actual al guardar
+                .puntaje(dto.getPuntaje())
                 .build();
 
         registro = registroRepository.save(registro);
@@ -37,6 +40,7 @@ public class G6_MH_RegistroEmocionalService {
         return toResponseDTO(registro);
     }
 
+    @Transactional(readOnly = true)
     public List<G6_MH_RegistroEmocionalResponseDTO> obtenerHistorial(Long idUsuario) {
         G6_MH_Usuario usuario = usuarioRepository.findById(idUsuario)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
@@ -57,6 +61,7 @@ public class G6_MH_RegistroEmocionalService {
                 .emocion(registro.getEmocion())
                 .descripcion(registro.getDescripcion())
                 .fecha(registro.getFecha())
+                .puntaje(registro.getPuntaje())
                 .build();
     }
 }

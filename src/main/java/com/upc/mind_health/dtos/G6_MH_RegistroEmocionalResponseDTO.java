@@ -13,4 +13,5 @@ public class G6_MH_RegistroEmocionalResponseDTO {
     private String emocion;
     private String descripcion;
     private LocalDate fecha;
+    private Integer puntaje;
 }

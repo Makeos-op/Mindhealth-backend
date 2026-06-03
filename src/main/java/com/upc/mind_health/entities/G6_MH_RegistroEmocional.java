@@ -28,4 +28,7 @@ public class G6_MH_RegistroEmocional {
 
     @Column(nullable = false)
     private LocalDate fecha;
+
+    @Column(nullable = false)
+    private Integer puntaje;
 }

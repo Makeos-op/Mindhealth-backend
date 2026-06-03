@@ -4,12 +4,12 @@ import lombok.*;
 import java.time.LocalDate;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class G6_MH_RegistroEmocionalRequestDTO {
-    private Long idUsuario;
-    private String emocion;
+public class G6_MH_ProgresoEmocionalDTO {
+    private LocalDate fecha;
+    private String emocionRegistrada;
     private String descripcion;
-    private Integer puntaje;
+    private Integer puntajeAnimo;
 }
