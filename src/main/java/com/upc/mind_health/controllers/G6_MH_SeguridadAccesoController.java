@@ -8,29 +8,29 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import java.security.Principal;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/seguridad")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
-@Tag(name = "Seguridad de la Cuenta", description = "Endpoints para auditar inicios de sesión y gestionar alertas por accesos sospechosos")
+@Tag(name = "Seguridad de la Cuenta", description = "Endpoints automatizados para auditar inicios de sesión mediante JWT")
 public class G6_MH_SeguridadAccesoController {
 
     private final G6_MH_SeguridadAccesoService seguridadService;
 
-    //Simular un intento de inicio de sesión para evaluar comportamiento sospechoso
-    // POST /api/seguridad/simular-login -> Endpoint de apoyo para gatillar el Escenario 1
+    //Simular un intento de acceso evaluando el contexto geográfico de la sesión activa
     @PostMapping("/simular-login")
-    public ResponseEntity<G6_MH_AccesoResponseDTO> registrarLogin(@RequestBody G6_MH_SimulacionLoginDTO dto) {
-        return ResponseEntity.ok(seguridadService.procesarIntentoAcceso(dto));
+    public ResponseEntity<G6_MH_AccesoResponseDTO> registrarLogin(
+            @RequestBody G6_MH_SimulacionLoginDTO dto, Principal principal) { // 🌟 Inyección automática
+        return ResponseEntity.ok(seguridadService.procesarIntentoAcceso(dto, principal.getName()));
     }
 
-    //HU08 - Visualizar el historial completo de dispositivos y ubicaciones de acceso
-    // GET /api/seguridad/historial/{idUsuario} -> Escenario 2
-    @GetMapping("/historial/{idUsuario}")
-    public ResponseEntity<List<G6_MH_AccesoResponseDTO>> obtenerHistorial(@PathVariable Long idUsuario) {
-        return ResponseEntity.ok(seguridadService.listarHistorialAccesos(idUsuario));
+    //Escenario 2 - Visualizar el historial de accesos del usuario autenticado
+    @GetMapping("/mis-accesos")
+    public ResponseEntity<List<G6_MH_AccesoResponseDTO>> obtenerHistorial(Principal principal) {
+        // Asumiendo un método homólogo en el servicio que busque por correo
+        return ResponseEntity.ok(seguridadService.listarHistorialAccesosPorCorreo(principal.getName()));
     }
 }

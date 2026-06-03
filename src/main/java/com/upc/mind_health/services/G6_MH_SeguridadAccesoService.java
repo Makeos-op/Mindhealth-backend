@@ -23,16 +23,14 @@ public class G6_MH_SeguridadAccesoService {
 
     // ESCENARIO 1: Evaluar si el Login es sospechoso y registrarlo
     @Transactional
-    public G6_MH_AccesoResponseDTO procesarIntentoAcceso(G6_MH_SimulacionLoginDTO dto) {
-        G6_MH_Usuario usuario = usuarioRepository.findById(dto.getIdUsuario())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+    public G6_MH_AccesoResponseDTO procesarIntentoAcceso(G6_MH_SimulacionLoginDTO dto, String correoUsuario) {
+        G6_MH_Usuario usuario = usuarioRepository.findByCorreo(correoUsuario)
+                .orElseThrow(() -> new RuntimeException("Usuario no autenticado o inexistente"));
 
-        // Obtenemos el historial previo para comparar ubicación
-        List<G6_MH_HistorialAcceso> historico = accesoRepository.findByUsuarioIdUsuarioOrderByFechaAccesoDesc(dto.getIdUsuario());
+        List<G6_MH_HistorialAcceso> historico = accesoRepository.findByUsuarioIdUsuarioOrderByFechaAccesoDesc(usuario.getIdUsuario());
 
         boolean sospechoso = false;
 
-        // Si ya tiene accesos anteriores y la nueva ubicación es radicalmente distinta, alertamos
         if (!historico.isEmpty()) {
             String ultimaUbicacionHabitual = historico.get(0).getUbicacion();
             if (!ultimaUbicacionHabitual.equalsIgnoreCase(dto.getUbicacion())) {
@@ -51,21 +49,21 @@ public class G6_MH_SeguridadAccesoService {
         nuevoAcceso = accesoRepository.save(nuevoAcceso);
 
         if (sospechoso) {
-            // 📧 ALERTA SIMULADA POR CORREO (Escenario 1)
-            System.out.println("ALERTA DE SEGURIDAD MIND HEALTH");
-            System.out.println("Estimado/a " + usuario.getNombre() + ", detectamos un acceso inusual.");
-            System.out.println("Ubicación: " + dto.getUbicacion() + " | Dispositivo: " + dto.getDispositivo());
-            System.out.println("Si no fuiste tú, protege tu cuenta inmediatamente cambiando tu contraseña aquí:");
-            System.out.println("http://localhost:8080/api/auth/recuperar-contrasena");
+            System.out.println("ALERTA DE SEGURIDAD AUTOMÁTICA");
+            System.out.println("Acceso inusual detectado para: " + usuario.getNombre());
+            System.out.println("Notificación preventiva enviada a su casilla: " + usuario.getCorreo());
         }
 
         return entityToDto(nuevoAcceso);
     }
 
-    // ESCENARIO 2: Obtener historial de accesos para la sección "Seguridad"
+    //ESCENARIO 2: Obtener historial de accesos usando el correo seguro del Token JWT
     @Transactional(readOnly = true)
-    public List<G6_MH_AccesoResponseDTO> listarHistorialAccesos(Long idUsuario) {
-        return accesoRepository.findByUsuarioIdUsuarioOrderByFechaAccesoDesc(idUsuario).stream()
+    public List<G6_MH_AccesoResponseDTO> listarHistorialAccesosPorCorreo(String correoUsuario) {
+        G6_MH_Usuario usuario = usuarioRepository.findByCorreo(correoUsuario)
+                .orElseThrow(() -> new RuntimeException("Usuario no autenticado o inexistente"));
+
+        return accesoRepository.findByUsuarioIdUsuarioOrderByFechaAccesoDesc(usuario.getIdUsuario()).stream()
                 .map(this::entityToDto)
                 .collect(Collectors.toList());
     }

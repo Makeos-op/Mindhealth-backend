@@ -7,7 +7,6 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class G6_MH_SimulacionLoginDTO {
-    private Long idUsuario;
     private String dispositivo;
     private String ubicacion;
 }

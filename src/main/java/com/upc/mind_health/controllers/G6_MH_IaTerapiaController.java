@@ -53,4 +53,16 @@ public class G6_MH_IaTerapiaController {
             return new ResponseEntity<>("Error al finalizar sesión: " + e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
+
+    @GetMapping("/historial-seguro")
+    public ResponseEntity<?> consultarHistorialSeguro(java.security.Principal principal) {
+        try {
+            var historial = iaTerapiaService.obtenerHistorialSesionesSeguras(principal.getName());
+            return ResponseEntity.ok(historial);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error al recuperar el historial seguro: " + e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        }
+    }
 }

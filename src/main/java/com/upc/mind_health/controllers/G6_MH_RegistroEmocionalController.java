@@ -1,6 +1,5 @@
 package com.upc.mind_health.controllers;
 
-import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import com.upc.mind_health.dtos.G6_MH_RegistroEmocionalRequestDTO;

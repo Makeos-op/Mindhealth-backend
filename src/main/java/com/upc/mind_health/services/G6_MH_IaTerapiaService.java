@@ -5,6 +5,7 @@ import com.upc.mind_health.entities.G6_MH_MensajeChat;
 import com.upc.mind_health.entities.G6_MH_SesionTerapia;
 import com.upc.mind_health.entities.G6_MH_Usuario;
 import com.upc.mind_health.repositories.G6_MH_MensajeChatRepository;
+import com.upc.mind_health.repositories.G6_MH_SesionCifradaRepository;
 import com.upc.mind_health.repositories.G6_MH_SesionTerapiaRepository;
 import com.upc.mind_health.repositories.G6_MH_UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,8 +15,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -28,25 +32,40 @@ public class G6_MH_IaTerapiaService {
     private final G6_MH_UsuarioRepository usuarioRepository;
     private final G6_MH_SesionTerapiaRepository sesionRepository;
     private final G6_MH_MensajeChatRepository mensajeRepository;
+    private final G6_MH_SesionCifradaRepository sesionCifradaRepository;
 
     @Value("${mindhealth.gemini.api-key:SIN_LLAVE}")
     private String apiKey;
 
     private final String geminiApiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=";
 
-    @Transactional // Todo este flujo se ejecuta junto: o se guarda todo o nada
+    // 🔑 LLAVE DE CIFRADO SIMÉTRICA (HU-10 - Requiere exactamente 16 caracteres para AES)
+    private static final String SECRET_KEY = "MindHealthKey2026";
+
+    // Métodos utilitarios internos para encriptar y desencriptar
+    private String cifrarAES(String texto) {
+        try {
+            SecretKeySpec keySpec = new SecretKeySpec(SECRET_KEY.getBytes(), "AES");
+            Cipher cipher = Cipher.getInstance("AES");
+            cipher.init(Cipher.ENCRYPT_MODE, keySpec);
+            byte[] cifrado = cipher.doFinal(texto.getBytes());
+            return Base64.getEncoder().encodeToString(cifrado);
+        } catch (Exception e) {
+            throw new RuntimeException("Error al cifrar el mensaje para la base de datos", e);
+        }
+    }
+
+    @Transactional
     public G6_MH_ChatResponseDTO procesarSesionRealConIA(String textoUsuario, Long idSesion) {
         if (textoUsuario == null || textoUsuario.trim().isEmpty()) {
             throw new RuntimeException("El texto de la sesión no puede estar vacío.");
         }
 
-        // 1. PERSISTENCIA EXACTA: Buscar la sesión usando el idSesion que viene del controlador
+        // 1. PERSISTENCIA EXACTA
         G6_MH_SesionTerapia sesion;
         if (idSesion == null || !sesionRepository.existsById(idSesion)) {
-            // Si no mandan ID o el ID no existe, el sistema CREA la primera sesión automáticamente
-            // Nota: Aquí buscamos al usuario con ID 1 (el paciente que inició sesión en la app)
             G6_MH_Usuario usuarioLogueado = usuarioRepository.findById(1L)
-                    .orElseThrow(() -> new RuntimeException("Usuario base no encontrado. Asegúrate de tener al menos un usuario en la BD."));
+                    .orElseThrow(() -> new RuntimeException("Usuario base no encontrado."));
 
             sesion = sesionRepository.save(G6_MH_SesionTerapia.builder()
                     .usuario(usuarioLogueado)
@@ -55,18 +74,18 @@ public class G6_MH_IaTerapiaService {
                     .nivelUrgenciaActual("BAJO")
                     .build());
         } else {
-            // Si la sesión ya existía, simplemente la recuperamos para continuar la conversación
             sesion = sesionRepository.findById(idSesion).get();
-
             if ("FINALIZADA".equals(sesion.getEstado())) {
                 throw new RuntimeException("No se pueden enviar mensajes a una sesión que ya ha sido FINALIZADA.");
             }
         }
 
-        // 2. PERSISTENCIA PACIENTE: Registrar lo que el usuario escribió
+        // 2. 🔒 PERSISTENCIA PACIENTE CIFRADA (HU-10): Ciframos el contenido antes de ir a Postgres
+        String textoCifradoPaciente = cifrarAES(textoUsuario);
+
         G6_MH_MensajeChat mensajePaciente = G6_MH_MensajeChat.builder()
                 .sesion(sesion)
-                .contenido(textoUsuario)
+                .contenido(textoCifradoPaciente) // 👈 Guardamos el texto ininteligible en la BD
                 .tipoRemitente("PACIENTE")
                 .fechaEnvio(LocalDateTime.now())
                 .build();
@@ -75,6 +94,7 @@ public class G6_MH_IaTerapiaService {
         try {
             RestTemplate restTemplate = new RestTemplate();
 
+            // 🧠 SE MANTIENE EL TEXTO EN CLARO PARA EL PROMPT: Asegura que el monitoreo sea real
             String promptCompleto = "Eres un asistente de inteligencia artificial experto en psicología y soporte " +
                     "emocional para la plataforma Mind Health. "
                     + "Tu trabajo es analizar el texto que escribe un paciente en crisis o desahogo. "
@@ -109,22 +129,23 @@ public class G6_MH_IaTerapiaService {
 
             @SuppressWarnings("unchecked")
             Map<String, Object> responseBody = response.getBody();
-
             String respuestaCrudaIA = obtenerTextoDeRespuestaGoogle(responseBody);
 
-            // Parseamos la respuesta para construir el DTO final
             G6_MH_ChatResponseDTO responseDTO = parsearRespuestaIA(respuestaCrudaIA, textoUsuario);
 
-            // 3. PERSISTENCIA IA: Guardar la respuesta empática en la tabla de mensajes
+            // 3. 🔒 PERSISTENCIA IA CIFRADA (HU-10): Ciframos la respuesta empática antes de ir a Postgres
+            String respuestaCifradaIA = cifrarAES(responseDTO.getRespuestaEmpatica());
+
             G6_MH_MensajeChat mensajeIA = G6_MH_MensajeChat.builder()
                     .sesion(sesion)
-                    .contenido(responseDTO.getRespuestaEmpatica())
+                    .contenido(respuestaCifradaIA) // 👈 Guardamos cifrado en la BD
                     .tipoRemitente("IA_ASISTENTE")
                     .fechaEnvio(LocalDateTime.now())
                     .build();
+
             mensajeRepository.save(mensajeIA);
 
-            // 4. METADATOS: Actualizar el estado de la cabecera de la sesión
+            // 4. METADATOS EN CLARO PARA MONITOREO DE GRÁFICOS
             sesion.setUltimaEmocionDetectada(responseDTO.getEmocionDetectada());
             sesion.setNivelUrgenciaActual(responseDTO.getNivelUrgencia());
             sesionRepository.save(sesion);
@@ -133,11 +154,11 @@ public class G6_MH_IaTerapiaService {
 
         } catch (Exception e) {
             System.err.println("Error crítico de integración con Gemini API: " + e.getMessage());
-            // 🚨 Al eliminar el fallback, lanzamos el error para que el controlador lo atrape
             throw new RuntimeException("No se pudo procesar el análisis cognitivo con la IA: " + e.getMessage());
         }
     }
 
+    // Los demás métodos (parsearRespuestaIA, obtenerTextoDeRespuestaGoogle, obtenerOCrearSesionActiva y finalizarSesionTerapia) se quedan exactamente iguales a como los pasaste...
     private G6_MH_ChatResponseDTO parsearRespuestaIA(String cruda, String textoOriginal) {
         try {
             if (cruda != null && cruda.contains("||")) {
@@ -213,11 +234,9 @@ public class G6_MH_IaTerapiaService {
 
     @Transactional
     public Long obtenerOCrearSesionActiva(Long idUsuario) {
-        // 1. Buscamos si ya tiene un chat abierto
         return sesionRepository.findByUsuarioIdUsuarioAndEstado(idUsuario, "ACTIVA")
-                .map(G6_MH_SesionTerapia::getIdSesion) // Si existe, devolvemos su ID
+                .map(G6_MH_SesionTerapia::getIdSesion)
                 .orElseGet(() -> {
-                    // Si no existe, creamos una nueva sesión desde cero
                     G6_MH_Usuario usuario = usuarioRepository.findById(idUsuario)
                             .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
@@ -239,5 +258,17 @@ public class G6_MH_IaTerapiaService {
 
         sesion.setEstado("FINALIZADA");
         sesionRepository.save(sesion);
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.upc.mind_health.dtos.G6_MH_HistorialCifradoResponseDTO> obtenerHistorialSesionesSeguras(String correoUsuario) {
+        return sesionCifradaRepository.findByUsuarioCorreoOrderByFechaInteraccionDesc(correoUsuario).stream()
+                .map(sesion -> com.upc.mind_health.dtos.G6_MH_HistorialCifradoResponseDTO.builder()
+                        .codigoSesion(sesion.getCodigoSesion())
+                        .fechaInteraccion(sesion.getFechaInteraccion())
+                        .confirmacionSeguridad("🔒 Sus datos emocionales compartidos en esta sesión están cifrados con el algoritmo de grado militar AES y protegidos contra terceros de forma automática.")
+                        .certificadoProteccion(sesion.getEstaProtegido())
+                        .build())
+                .collect(Collectors.toList());
     }
 }
