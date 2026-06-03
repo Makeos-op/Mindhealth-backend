@@ -1,9 +1,6 @@
 package com.upc.mind_health.services;
 
-import com.upc.mind_health.dtos.G6_MH_AlertaNotificacionDTO;
-import com.upc.mind_health.dtos.G6_MH_CasoCriticoResponseDTO;
-import com.upc.mind_health.dtos.G6_MH_ChatResponseDTO;
-import com.upc.mind_health.dtos.G6_MH_HistorialSeguroResponseDTO;
+import com.upc.mind_health.dtos.*;
 import com.upc.mind_health.entities.*;
 import com.upc.mind_health.repositories.*;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +30,7 @@ public class G6_MH_IaTerapiaService {
     private final G6_MH_MensajeChatRepository mensajeRepository;
     private final G6_MH_DerivacionRepository derivacionRepository;
     private final G6_MH_PsicologoRepository psicologoRepository;
+    private final G6_MH_ColaboracionRepository colaboracionRepository;
 
     @Value("${mindhealth.gemini.api-key:SIN_LLAVE}")
     private String apiKey;
@@ -360,5 +358,70 @@ public class G6_MH_IaTerapiaService {
                         .confirmacionSeguridad("Sus datos emocionales compartidos en esta sesión están cifrados con el algoritmo AES y protegidos contra terceros de forma automática.")
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    //HU-13 ESCENARIO 1: Crear una solicitud de coordinación inter-psicólogos
+    @Transactional
+    public G6_MH_CoordinacionResponseDTO solicitarCoordinacionCaso(String correoEmisor, G6_MH_CoordinacionRequestDTO requestDTO) {
+        G6_MH_Derivacion derivacion = derivacionRepository.findById(requestDTO.getIdDerivacion())
+                .orElseThrow(() -> new RuntimeException("Caso de derivación no encontrado"));
+
+        G6_MH_Psicologo emisor = psicologoRepository.findByUsuarioCorreo(correoEmisor)
+                .orElseThrow(() -> new RuntimeException("No se encontró tu perfil de profesional emisor"));
+
+        G6_MH_Psicologo receptor = psicologoRepository.findByUsuarioCorreo(requestDTO.getCorreoColegaInvitado())
+                .orElseThrow(() -> new RuntimeException("El correo ingresado no pertenece a ningún psicólogo de la plataforma"));
+
+        G6_MH_Colaboracion colaboracion = G6_MH_Colaboracion.builder()
+                .derivacion(derivacion)
+                .emisor(emisor)
+                .receptor(receptor)
+                .estadoSolicitud("PENDIENTE")
+                .fechaSolicitud(LocalDateTime.now())
+                .build();
+
+        colaboracionRepository.save(colaboracion);
+
+        return G6_MH_CoordinacionResponseDTO.builder()
+                .idColaboracion(colaboracion.getIdColaboracion())
+                .nombreEmisor(emisor.getNombre())
+                .nombreReceptor(receptor.getNombre())
+                .estadoActual("PENDIENTE")
+                .mensajeNotificacion("📨 Solicitud enviada con éxito. Se ha notificado al Dr(a). " + receptor.getNombre())
+                .fechaCambio(LocalDateTime.now())
+                .build();
+    }
+
+    // HU-13 ESCENARIO 2 Y 3: Responder (Aceptar o Rechazar) la colaboración
+    @Transactional
+    public G6_MH_CoordinacionResponseDTO gestionarRespuestaColaboracion(Long idColaboracion, String correoReceptor, boolean acepta, String notasIniciales) {
+        G6_MH_Colaboracion colaboracion = colaboracionRepository.findById(idColaboracion)
+                .orElseThrow(() -> new RuntimeException("Registro de colaboración no encontrado"));
+
+        if (!colaboracion.getReceptor().getUsuario().getCorreo().equalsIgnoreCase(correoReceptor)) {
+            throw new RuntimeException("No tienes permiso para responder a esta invitación.");
+        }
+
+        if (acepta) {
+            colaboracion.setEstadoSolicitud("ACEPTADA");
+            colaboracion.setObservacionesCompartidas(notasIniciales != null ? notasIniciales : "Espacio de trabajo conjunto habilitado.");
+        } else {
+            colaboracion.setEstadoSolicitud("RECHAZADA");
+        }
+        colaboracionRepository.save(colaboracion);
+
+        String msg = acepta
+                ? "Colaboración aceptada. Espacio compartido habilitado para el caso."
+                : "Colaboración rechazada. Mensaje enviado al emisor.";
+
+        return G6_MH_CoordinacionResponseDTO.builder()
+                .idColaboracion(colaboracion.getIdColaboracion())
+                .nombreEmisor(colaboracion.getEmisor().getNombre())
+                .nombreReceptor(colaboracion.getReceptor().getNombre())
+                .estadoActual(colaboracion.getEstadoSolicitud())
+                .notasDeCasoCompartidas(colaboracion.getObservacionesCompartidas())
+                .mensajeNotificacion(msg)
+                .fechaCambio(LocalDateTime.now())
+                .build();
     }
 }

@@ -44,7 +44,7 @@ public class G6_MH_SecurityConfig {
                         .requestMatchers("/api/terapia-ia/profesional/**").hasAuthority("ROLE_PROFESIONAL")
 
                         // 3. Endpoints exclusivos para el rol PACIENTE
-                        .requestMatchers("/api/terapia-ia/**","/api/analisis-emocional/**",
+                        .requestMatchers("/api/terapia-ia/paciente/**","/api/analisis-emocional/**",
                                 "/api/emociones/**", "/api/privacidad/**", "/api/seguridad/**").hasAuthority("ROLE_PACIENTE")
 
                         // 4. Endpoints generales de Usuario: Requieren estar autenticado
