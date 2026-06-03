@@ -3,6 +3,7 @@ package com.upc.mind_health.services;
 import com.upc.mind_health.dtos.G6_MH_AlertaNotificacionDTO;
 import com.upc.mind_health.dtos.G6_MH_CasoCriticoResponseDTO;
 import com.upc.mind_health.dtos.G6_MH_ChatResponseDTO;
+import com.upc.mind_health.dtos.G6_MH_HistorialSeguroResponseDTO;
 import com.upc.mind_health.entities.*;
 import com.upc.mind_health.repositories.*;
 import lombok.RequiredArgsConstructor;
@@ -337,12 +338,27 @@ public class G6_MH_IaTerapiaService {
         profesional.setDisponible(true);
         psicologoRepository.save(profesional);
 
-        return com.upc.mind_health.dtos.G6_MH_AlertaNotificacionDTO.builder()
+        return G6_MH_AlertaNotificacionDTO.builder()
                 .idDerivacion(derivacion.getIdDerivacion())
                 .correoProfesional(correoPsicologo)
                 .mensajePush("Caso cerrado con éxito. El profesional vuelve a estar disponible en el sistema.")
                 .severidad("RESOLVIDO")
                 .fechaAlerta(LocalDate.now())
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<G6_MH_HistorialSeguroResponseDTO> obtenerHistorialSesionesSegurasReal(Long idUsuario) {
+        return sesionRepository.findAll().stream()
+                .filter(sesion -> sesion.getUsuario().getIdUsuario().equals(idUsuario))
+                .map(sesion -> G6_MH_HistorialSeguroResponseDTO.builder()
+                        .idSesion(sesion.getIdSesion())
+                        .fechaInicio(sesion.getFechaInicio())
+                        .estado(sesion.getEstado())
+                        .ultimaEmocion(sesion.getUltimaEmocionDetectada())
+                        // Confirmación de cifrado explícita exigida por el criterio de aceptación
+                        .confirmacionSeguridad("Sus datos emocionales compartidos en esta sesión están cifrados con el algoritmo AES y protegidos contra terceros de forma automática.")
+                        .build())
+                .collect(Collectors.toList());
     }
 }

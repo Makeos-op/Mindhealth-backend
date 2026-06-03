@@ -3,6 +3,7 @@ package com.upc.mind_health.controllers;
 import com.upc.mind_health.dtos.G6_MH_ChatRequestDTO;
 import com.upc.mind_health.dtos.G6_MH_ChatResponseDTO;
 import com.upc.mind_health.dtos.G6_MH_CasoCriticoResponseDTO;
+import com.upc.mind_health.dtos.G6_MH_HistorialSeguroResponseDTO;
 import com.upc.mind_health.services.G6_MH_IaTerapiaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -59,6 +60,12 @@ public class G6_MH_IaTerapiaController {
         } catch (Exception e) {
             return new ResponseEntity<>("Error al finalizar sesión: " + e.getMessage(), HttpStatus.BAD_REQUEST);
         }
+    }
+
+    //HU-10: Escenario 2: Confirmación de seguridad al usuario
+    @GetMapping("/paciente/historial-seguro/{idUsuario}")
+    public ResponseEntity<List<G6_MH_HistorialSeguroResponseDTO>> obtenerHistorialSeguro(@PathVariable Long idUsuario) {
+        return ResponseEntity.ok(iaTerapiaService.obtenerHistorialSesionesSegurasReal(idUsuario));
     }
 
     //HU-11: Para que el Profesional consulte sus alertas asignadas de forma automática
