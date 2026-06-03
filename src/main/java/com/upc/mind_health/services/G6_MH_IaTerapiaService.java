@@ -3,7 +3,6 @@ package com.upc.mind_health.services;
 import com.upc.mind_health.dtos.G6_MH_AlertaNotificacionDTO;
 import com.upc.mind_health.dtos.G6_MH_CasoCriticoResponseDTO;
 import com.upc.mind_health.dtos.G6_MH_ChatResponseDTO;
-import com.upc.mind_health.dtos.G6_MH_HistorialCifradoResponseDTO;
 import com.upc.mind_health.entities.*;
 import com.upc.mind_health.repositories.*;
 import lombok.RequiredArgsConstructor;
