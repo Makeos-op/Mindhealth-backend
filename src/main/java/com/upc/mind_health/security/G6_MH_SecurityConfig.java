@@ -40,11 +40,14 @@ public class G6_MH_SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
                                 "/api-docs/**", "/api/politicas/**").permitAll()
 
-                        // 2. Endpoints exclusivos para el rol PACIENTE
+                        //2. Endpoints exclusivos para el rol PROFESIONAL
+                        .requestMatchers("/api/terapia-ia/profesional/**").hasAuthority("ROLE_PROFESIONAL")
+
+                        // 3. Endpoints exclusivos para el rol PACIENTE
                         .requestMatchers("/api/terapia-ia/**","/api/analisis-emocional/**",
                                 "/api/emociones/**", "/api/privacidad/**", "/api/seguridad/**").hasAuthority("ROLE_PACIENTE")
 
-                        // 3. Endpoints generales de Usuario: Requieren estar autenticado
+                        // 4. Endpoints generales de Usuario: Requieren estar autenticado
                         .requestMatchers("/api/usuario/**").authenticated()
 
                         .anyRequest().authenticated()

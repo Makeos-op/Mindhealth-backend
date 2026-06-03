@@ -1,13 +1,11 @@
 package com.upc.mind_health.services;
 
+import com.upc.mind_health.dtos.G6_MH_AlertaNotificacionDTO;
+import com.upc.mind_health.dtos.G6_MH_CasoCriticoResponseDTO;
 import com.upc.mind_health.dtos.G6_MH_ChatResponseDTO;
-import com.upc.mind_health.entities.G6_MH_MensajeChat;
-import com.upc.mind_health.entities.G6_MH_SesionTerapia;
-import com.upc.mind_health.entities.G6_MH_Usuario;
-import com.upc.mind_health.repositories.G6_MH_MensajeChatRepository;
-import com.upc.mind_health.repositories.G6_MH_SesionCifradaRepository;
-import com.upc.mind_health.repositories.G6_MH_SesionTerapiaRepository;
-import com.upc.mind_health.repositories.G6_MH_UsuarioRepository;
+import com.upc.mind_health.dtos.G6_MH_HistorialCifradoResponseDTO;
+import com.upc.mind_health.entities.*;
+import com.upc.mind_health.repositories.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -17,6 +15,7 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Base64;
@@ -32,15 +31,16 @@ public class G6_MH_IaTerapiaService {
     private final G6_MH_UsuarioRepository usuarioRepository;
     private final G6_MH_SesionTerapiaRepository sesionRepository;
     private final G6_MH_MensajeChatRepository mensajeRepository;
-    private final G6_MH_SesionCifradaRepository sesionCifradaRepository;
+    private final G6_MH_DerivacionRepository derivacionRepository;
+    private final G6_MH_PsicologoRepository psicologoRepository;
 
     @Value("${mindhealth.gemini.api-key:SIN_LLAVE}")
     private String apiKey;
 
     private final String geminiApiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=";
 
-    // 🔑 LLAVE DE CIFRADO SIMÉTRICA (HU-10 - Requiere exactamente 16 caracteres para AES)
-    private static final String SECRET_KEY = "MindHealthKey2026";
+    // LLAVE DE CIFRADO SIMÉTRICA (HU-10 - Requiere exactamente 16 caracteres para AES)
+    private static final String SECRET_KEY = "MindHealthKey910";
 
     // Métodos utilitarios internos para encriptar y desencriptar
     private String cifrarAES(String texto) {
@@ -80,12 +80,12 @@ public class G6_MH_IaTerapiaService {
             }
         }
 
-        // 2. 🔒 PERSISTENCIA PACIENTE CIFRADA (HU-10): Ciframos el contenido antes de ir a Postgres
+        // 2. PERSISTENCIA PACIENTE CIFRADA (HU-10): Ciframos el contenido antes de ir a Postgres
         String textoCifradoPaciente = cifrarAES(textoUsuario);
 
         G6_MH_MensajeChat mensajePaciente = G6_MH_MensajeChat.builder()
                 .sesion(sesion)
-                .contenido(textoCifradoPaciente) // 👈 Guardamos el texto ininteligible en la BD
+                .contenido(textoCifradoPaciente)
                 .tipoRemitente("PACIENTE")
                 .fechaEnvio(LocalDateTime.now())
                 .build();
@@ -94,7 +94,7 @@ public class G6_MH_IaTerapiaService {
         try {
             RestTemplate restTemplate = new RestTemplate();
 
-            // 🧠 SE MANTIENE EL TEXTO EN CLARO PARA EL PROMPT: Asegura que el monitoreo sea real
+            // SE MANTIENE EL TEXTO EN CLARO PARA EL PROMPT: Asegura que el monitoreo sea real
             String promptCompleto = "Eres un asistente de inteligencia artificial experto en psicología y soporte " +
                     "emocional para la plataforma Mind Health. "
                     + "Tu trabajo es analizar el texto que escribe un paciente en crisis o desahogo. "
@@ -133,12 +133,12 @@ public class G6_MH_IaTerapiaService {
 
             G6_MH_ChatResponseDTO responseDTO = parsearRespuestaIA(respuestaCrudaIA, textoUsuario);
 
-            // 3. 🔒 PERSISTENCIA IA CIFRADA (HU-10): Ciframos la respuesta empática antes de ir a Postgres
+            // 3. PERSISTENCIA IA CIFRADA (HU-10): Ciframos la respuesta empática antes de ir a Postgres
             String respuestaCifradaIA = cifrarAES(responseDTO.getRespuestaEmpatica());
 
             G6_MH_MensajeChat mensajeIA = G6_MH_MensajeChat.builder()
                     .sesion(sesion)
-                    .contenido(respuestaCifradaIA) // 👈 Guardamos cifrado en la BD
+                    .contenido(respuestaCifradaIA)
                     .tipoRemitente("IA_ASISTENTE")
                     .fechaEnvio(LocalDateTime.now())
                     .build();
@@ -150,6 +150,11 @@ public class G6_MH_IaTerapiaService {
             sesion.setNivelUrgenciaActual(responseDTO.getNivelUrgencia());
             sesionRepository.save(sesion);
 
+            // HU-11 INTEGRACIÓN: Si el nivel es CRÍTICO, asignamos psicólogo en tiempo real
+            if ("CRÍTICO".equalsIgnoreCase(responseDTO.getNivelUrgencia())) {
+                ejecutarAsignacionAutomatica(sesion, responseDTO.getEmocionDetectada());
+            }
+
             return responseDTO;
 
         } catch (Exception e) {
@@ -158,7 +163,6 @@ public class G6_MH_IaTerapiaService {
         }
     }
 
-    // Los demás métodos (parsearRespuestaIA, obtenerTextoDeRespuestaGoogle, obtenerOCrearSesionActiva y finalizarSesionTerapia) se quedan exactamente iguales a como los pasaste...
     private G6_MH_ChatResponseDTO parsearRespuestaIA(String cruda, String textoOriginal) {
         try {
             if (cruda != null && cruda.contains("||")) {
@@ -260,15 +264,86 @@ public class G6_MH_IaTerapiaService {
         sesionRepository.save(sesion);
     }
 
+    private void ejecutarAsignacionAutomatica(G6_MH_SesionTerapia sesion, String emocion) {
+        List<G6_MH_Psicologo> disponibles = psicologoRepository.findByDisponibleTrue();
+
+        if (!disponibles.isEmpty()) {
+            G6_MH_Psicologo profesionalAsignado = disponibles.get(0);
+
+            // 🌟 Construcción lineal: Asociamos la sesión directa en lugar del usuario
+            G6_MH_Derivacion nuevaDerivacion = G6_MH_Derivacion.builder()
+                    .motivo("Derivación Inmediata por Alerta IA: " + emocion)
+                    .fecha(java.time.LocalDate.now())
+                    .sesion(sesion)
+                    .profesional(profesionalAsignado)
+                    .build();
+
+            derivacionRepository.save(nuevaDerivacion);
+
+            profesionalAsignado.setDisponible(false);
+            psicologoRepository.save(profesionalAsignado);
+
+            //ESCENARIO 1: Simulación de Notificación Inteligente Push/Email
+            dispararNotificacionInteligente(nuevaDerivacion, profesionalAsignado.getUsuario().getCorreo());
+
+            System.out.println("Caso derivado linealmente al profesional ID: " + profesionalAsignado.getIdPsicologo());
+        } else {
+            System.out.println("Sin profesionales disponibles.");
+        }
+    }
+
     @Transactional(readOnly = true)
-    public List<com.upc.mind_health.dtos.G6_MH_HistorialCifradoResponseDTO> obtenerHistorialSesionesSeguras(String correoUsuario) {
-        return sesionCifradaRepository.findByUsuarioCorreoOrderByFechaInteraccionDesc(correoUsuario).stream()
-                .map(sesion -> com.upc.mind_health.dtos.G6_MH_HistorialCifradoResponseDTO.builder()
-                        .codigoSesion(sesion.getCodigoSesion())
-                        .fechaInteraccion(sesion.getFechaInteraccion())
-                        .confirmacionSeguridad("🔒 Sus datos emocionales compartidos en esta sesión están cifrados con el algoritmo de grado militar AES y protegidos contra terceros de forma automática.")
-                        .certificadoProteccion(sesion.getEstaProtegido())
+    public List<G6_MH_CasoCriticoResponseDTO> listarAlertasParaPsicologo(String correoPsicologo) {
+        return derivacionRepository.findByProfesionalUsuarioCorreoOrderByFechaDesc(correoPsicologo).stream()
+                .map(derivacion -> com.upc.mind_health.dtos.G6_MH_CasoCriticoResponseDTO.builder()
+                        .idDerivacion(derivacion.getIdDerivacion())
+                        .nombrePaciente(derivacion.getSesion().getUsuario().getNombre())
+                        .fechaDerivacion(derivacion.getFecha())
+                        .motivoAlerta(derivacion.getMotivo())
+                        .mensajeConfirmacion("Asignación crítica automática por riesgo emocional.")
+                        .ultimaEmocionHistorica(derivacion.getSesion().getUltimaEmocionDetectada())
+                        .recomendacionesSeguimiento(Arrays.asList(
+                                "Revisar los últimos mensajes cifrados de la sesión #" + derivacion.getSesion().getIdSesion(),
+                                "Aplicar protocolo de contención cognitiva conductual para la emoción: " + derivacion.getSesion().getUltimaEmocionDetectada()
+                        ))
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    private void dispararNotificacionInteligente(G6_MH_Derivacion derivacion, String correoDestino) {
+        System.out.println("[NOTIFICACIÓN INTELIGENTE]");
+        System.out.println("ENVIANDO ALERTA PUSH A: " + correoDestino);
+        System.out.println("MENSAJE: ¡ALERTA DE CRISIS EMOCIONAL! Se te ha asignado el caso de la Sesión #"
+                + derivacion.getSesion().getIdSesion() + ". Motivo: " + derivacion.getMotivo());
+    }
+
+    @Transactional
+    public G6_MH_AlertaNotificacionDTO atenderYFecharCrisis(Long idDerivacion, String correoPsicologo, String notas) {
+        G6_MH_Derivacion derivacion = derivacionRepository.findById(idDerivacion)
+                .orElseThrow(() -> new RuntimeException("Registro de derivación no encontrado."));
+
+        // Validación de seguridad: Que el psicólogo que atiende sea realmente el asignado
+        if (!derivacion.getProfesional().getUsuario().getCorreo().equalsIgnoreCase(correoPsicologo)) {
+            throw new RuntimeException("No tienes autorización para gestionar este caso crítico.");
+        }
+
+        // 1. Registrar el cierre clínico de la crisis
+        derivacion.setEstadoAtencion("ATENDIDO");
+        derivacion.setNotasSeguimiento(notas);
+        derivacion.setFechaAtencion(LocalDateTime.now());
+        derivacionRepository.save(derivacion);
+
+        // 2. Liberar al psicólogo para que vuelva a figurar como DISPONIBLE para el bot
+        G6_MH_Psicologo profesional = derivacion.getProfesional();
+        profesional.setDisponible(true);
+        psicologoRepository.save(profesional);
+
+        return com.upc.mind_health.dtos.G6_MH_AlertaNotificacionDTO.builder()
+                .idDerivacion(derivacion.getIdDerivacion())
+                .correoProfesional(correoPsicologo)
+                .mensajePush("Caso cerrado con éxito. El profesional vuelve a estar disponible en el sistema.")
+                .severidad("RESOLVIDO")
+                .fechaAlerta(LocalDate.now())
+                .build();
     }
 }
