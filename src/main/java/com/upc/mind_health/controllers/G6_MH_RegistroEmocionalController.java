@@ -33,4 +33,16 @@ public class G6_MH_RegistroEmocionalController {
         List<G6_MH_RegistroEmocionalResponseDTO> historial = registroEmocionalService.obtenerHistorial(idUsuario);
         return ResponseEntity.ok(historial);
     }
+
+    // HU-16 Escenario 1: Análisis automático del impacto de eventos cotidianos
+    @GetMapping("/analisis-evento/{idUsuario}")
+    public ResponseEntity<String> analizarImpacto(@PathVariable Long idUsuario) {
+        return ResponseEntity.ok(registroEmocionalService.analizarImpactoEvento(idUsuario));
+    }
+
+    // HU-17 Escenario 1: Mensajes de logro por tendencia positiva
+    @GetMapping("/recompensa/{idUsuario}")
+    public ResponseEntity<String> obtenerRecompensa(@PathVariable Long idUsuario) {
+        return ResponseEntity.ok(registroEmocionalService.obtenerRecompensaMotivacional(idUsuario));
+    }
 }

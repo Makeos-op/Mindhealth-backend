@@ -1,5 +1,7 @@
 package com.upc.mind_health.services;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.upc.mind_health.dtos.*;
 import com.upc.mind_health.entities.*;
 import com.upc.mind_health.repositories.*;
@@ -35,9 +37,7 @@ public class G6_MH_IaTerapiaService {
     @Value("${mindhealth.gemini.api-key:SIN_LLAVE}")
     private String apiKey;
 
-    private final String geminiApiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=";
-
-    // LLAVE DE CIFRADO SIMÉTRICA (HU-10 - Requiere exactamente 16 caracteres para AES)
+    //(HU-10 - Requiere exactamente 16 caracteres para AES)
     private static final String SECRET_KEY = "MindHealthKey910";
 
     // Métodos utilitarios internos para encriptar y desencriptar
@@ -72,8 +72,8 @@ public class G6_MH_IaTerapiaService {
                     .nivelUrgenciaActual("BAJO")
                     .build());
         } else {
-            sesion = sesionRepository.findById(idSesion).get();
-            if ("FINALIZADA".equals(sesion.getEstado())) {
+            sesion = sesionRepository.findById(idSesion)
+                    .orElseThrow(() -> new RuntimeException("Sesión no encontrada."));            if ("FINALIZADA".equals(sesion.getEstado())) {
                 throw new RuntimeException("No se pueden enviar mensajes a una sesión que ya ha sido FINALIZADA.");
             }
         }
@@ -90,8 +90,6 @@ public class G6_MH_IaTerapiaService {
         mensajeRepository.save(mensajePaciente);
 
         try {
-            RestTemplate restTemplate = new RestTemplate();
-
             // SE MANTIENE EL TEXTO EN CLARO PARA EL PROMPT: Asegura que el monitoreo sea real
             String promptCompleto = "Eres un asistente de inteligencia artificial experto en psicología y soporte " +
                     "emocional para la plataforma Mind Health. "
@@ -110,25 +108,7 @@ public class G6_MH_IaTerapiaService {
                     "EMOCION: [Emoción] || URGENCIA: [Nivel] || RESPUESTA: [Tu respuesta empática] || " +
                     "RECOMENDACIONES: [Recomendación 1; Recomendación 2] || AYUDA: [Línea de ayuda si aplica]";
 
-            Map<String, Object> requestBody = new HashMap<>();
-            Map<String, Object> textPart = new HashMap<>();
-            textPart.put("text", promptCompleto);
-
-            Map<String, Object> partsWrapper = new HashMap<>();
-            partsWrapper.put("parts", Collections.singletonList(textPart));
-            requestBody.put("contents", Collections.singletonList(partsWrapper));
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-            @SuppressWarnings("rawtypes")
-            ResponseEntity<Map> response = restTemplate.postForEntity(geminiApiUrl + apiKey, entity, Map.class);
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> responseBody = response.getBody();
-            String respuestaCrudaIA = obtenerTextoDeRespuestaGoogle(responseBody);
-
+            String respuestaCrudaIA = llamarApiGemini(promptCompleto);
             G6_MH_ChatResponseDTO responseDTO = parsearRespuestaIA(respuestaCrudaIA, textoUsuario);
 
             // 3. PERSISTENCIA IA CIFRADA (HU-10): Ciframos la respuesta empática antes de ir a Postgres
@@ -253,13 +233,84 @@ public class G6_MH_IaTerapiaService {
                 });
     }
 
+    private String descifrarAES(String textoCifrado) {
+        try {
+            SecretKeySpec keySpec = new SecretKeySpec(SECRET_KEY.getBytes(), "AES");
+            Cipher cipher = Cipher.getInstance("AES");
+            cipher.init(Cipher.DECRYPT_MODE, keySpec);
+            byte[] textoPlano = cipher.doFinal(Base64.getDecoder().decode(textoCifrado));
+            return new String(textoPlano);
+        } catch (Exception e) {
+            System.err.println("Error al descifrar el mensaje. Se devolverá encriptado por seguridad.");
+            return textoCifrado; // Fallback
+        }
+    }
+
     @Transactional
-    public void finalizarSesionTerapia(Long idSesion) {
+    public G6_MH_ResumenPostSesionDTO finalizarSesionConResumen(Long idSesion) {
         G6_MH_SesionTerapia sesion = sesionRepository.findById(idSesion)
                 .orElseThrow(() -> new RuntimeException("Sesión no encontrada"));
 
+        if ("FINALIZADA".equals(sesion.getEstado())) {
+            throw new RuntimeException("Esta sesión ya fue finalizada previamente.");
+        }
+
+        // 1. Recuperar el historial completo y descifrarlo
+        List<G6_MH_MensajeChat> historial = mensajeRepository.findBySesionIdSesionOrderByFechaEnvioAsc(idSesion);
+        StringBuilder transcripcion = new StringBuilder();
+
+        for (G6_MH_MensajeChat msg : historial) {
+            String textoPlano = descifrarAES(msg.getContenido());
+            transcripcion.append(msg.getTipoRemitente()).append(": ").append(textoPlano).append("\n");
+        }
+
+        // 2. Prompt estricto para Gemini
+        String promptAnalisis = "Actúa como un psicólogo clínico experto. Analiza la siguiente transcripción de una sesión de contención emocional. " +
+                "Genera un resumen post-sesión personalizado. Devuelve ESTRICTAMENTE un JSON con esta estructura exacta, sin formato markdown, ni comillas invertidas, ni texto extra:\n" +
+                "{\n" +
+                "  \"insight\": \"Un párrafo breve y empático analizando el progreso y estado emocional del paciente en la sesión.\",\n" +
+                "  \"sugerencias\": [\"Práctica de mindfulness específica basada en el chat\", \"Ejercicio práctico o reflexión\", \"Acción de bienestar\"]\n" +
+                "}\n\n" +
+                "Transcripción de la sesión:\n" + transcripcion;
+
+        String insightGenerado;
+        List<String> sugerenciasGeneradas;
+
+        try {
+            // 3. Conexión HTTP real a Gemini (Misma estructura que ya usamos para el chat)
+            String respuestaGeminiBruta = llamarApiGemini(promptAnalisis);
+
+            // 4. Limpiar y parsear el JSON devuelto por la IA usando Jackson
+            String jsonLimpio = respuestaGeminiBruta.replace("```json", "").replace("```", "").trim();
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode rootNode = mapper.readTree(jsonLimpio);
+
+            insightGenerado = rootNode.get("insight").asText();
+            sugerenciasGeneradas = mapper.convertValue(rootNode.get("sugerencias"), new com.fasterxml.jackson.core.type.TypeReference<>(){});
+
+        } catch (Exception e) {
+            // 5. Plan de contingencia si Google Gemini se cae o hay timeout
+            insightGenerado = "Sesión concluida con éxito. Has dado un paso importante al expresar tus emociones el día de hoy.";
+            sugerenciasGeneradas = Arrays.asList(
+                    "Toma un vaso de agua y realiza respiraciones profundas.",
+                    "Descansa la mente por los próximos 15 minutos."
+            );
+            System.err.println("Error procesando el resumen con la IA: " + e.getMessage());
+        }
+
+        // 6. Cerrar el caso en Base de Datos
         sesion.setEstado("FINALIZADA");
         sesionRepository.save(sesion);
+
+        // 7. Entregar el DTO validado
+        return com.upc.mind_health.dtos.G6_MH_ResumenPostSesionDTO.builder()
+                .idSesion(sesion.getIdSesion())
+                .fechaFinalizacion(LocalDateTime.now())
+                .estadoSesion("FINALIZADA")
+                .emocionPredominante(sesion.getUltimaEmocionDetectada() != null ? sesion.getUltimaEmocionDetectada() : "No evaluada")
+                .insightClinicoIA(insightGenerado)
+                .sugerenciasPracticas(sugerenciasGeneradas)
+                .build();
     }
 
     private void ejecutarAsignacionAutomatica(G6_MH_SesionTerapia sesion, String emocion) {
@@ -268,7 +319,6 @@ public class G6_MH_IaTerapiaService {
         if (!disponibles.isEmpty()) {
             G6_MH_Psicologo profesionalAsignado = disponibles.get(0);
 
-            // 🌟 Construcción lineal: Asociamos la sesión directa en lugar del usuario
             G6_MH_Derivacion nuevaDerivacion = G6_MH_Derivacion.builder()
                     .motivo("Derivación Inmediata por Alerta IA: " + emocion)
                     .fecha(java.time.LocalDate.now())
@@ -423,5 +473,33 @@ public class G6_MH_IaTerapiaService {
                 .mensajeNotificacion(msg)
                 .fechaCambio(LocalDateTime.now())
                 .build();
+    }
+
+    private String llamarApiGemini(String prompt) {
+        String geminiApiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=";
+
+        RestTemplate restTemplate = new RestTemplate();
+        Map<String, Object> requestBody = new HashMap<>();
+        Map<String, Object> textPart = new HashMap<>();
+        textPart.put("text", prompt);
+
+        Map<String, Object> partsWrapper = new HashMap<>();
+        partsWrapper.put("parts", Collections.singletonList(textPart));
+        requestBody.put("contents", Collections.singletonList(partsWrapper));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        org.springframework.http.ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                geminiApiUrl + apiKey,
+                org.springframework.http.HttpMethod.POST,
+                entity,
+                new org.springframework.core.ParameterizedTypeReference<>() {}
+        );
+
+        Map<String, Object> responseBody = response.getBody();
+        return obtenerTextoDeRespuestaGoogle(responseBody);
     }
 }

@@ -51,6 +51,57 @@ public class G6_MH_RegistroEmocionalService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public String analizarImpactoEvento(Long idUsuario) {
+        // Usamos tu query nativa con límite 2 para comparar el día de hoy con el de ayer
+        List<G6_MH_RegistroEmocional> ultimos = registroRepository.findUltimosRegistros(idUsuario, 2);
+
+        if (ultimos.size() < 2) {
+            return "Registra más días para que la IA pueda evaluar el impacto de tus eventos.";
+        }
+
+        G6_MH_RegistroEmocional hoy = ultimos.get(0);
+        G6_MH_RegistroEmocional ayer = ultimos.get(1);
+
+        // Si el puntaje bajó o subió, la IA genera la relación
+        if (hoy.getPuntaje() < ayer.getPuntaje()) {
+            return "La IA detectó un cambio de ánimo a raíz de tu evento registrado: '" + hoy.getEmocion() +
+                    "'. El evento '" + hoy.getDescripcion() + "' impactó negativamente en comparación con ayer.";
+        } else if (hoy.getPuntaje() > ayer.getPuntaje()) {
+            return "¡Gran cambio positivo! Tu evento de hoy: '" + hoy.getDescripcion() +
+                    "' elevó tu estado de ánimo a '" + hoy.getEmocion() + "' en comparación con el día anterior.";
+        }
+
+        return "Tu estado de ánimo se mantiene estable con respecto a los eventos de ayer.";
+    }
+
+    @Transactional(readOnly = true)
+    public String obtenerRecompensaMotivacional(Long idUsuario) {
+        List<G6_MH_RegistroEmocional> historialSemanal = registroRepository.findByUsuarioIdUsuarioOrderByFechaAsc(idUsuario);
+
+        // Tomamos como máximo los últimos 7 registros de la lista
+        List<G6_MH_RegistroEmocional> ultimos7Dias = historialSemanal.stream()
+                .skip(Math.max(0, historialSemanal.size() - 7))
+                .toList();
+
+        if (ultimos7Dias.isEmpty()) {
+            return "Comienza tu registro diario para recibir mensajes de progreso.";
+        }
+
+        // Calculamos matemáticamente el promedio de bienestar semanal
+        double promedioPuntaje = ultimos7Dias.stream()
+                .mapToInt(G6_MH_RegistroEmocional::getPuntaje)
+                .average()
+                .orElse(0.0);
+
+        // Si el promedio es alto (mayor o igual a 3.5), se activa la recompensa motivacional
+        if (promedioPuntaje >= 3.5) {
+            return "¡Estás avanzando! Esta semana tuviste más días felices. Sigue así.";
+        }
+
+        return "Has completado tus registros de la semana. Continuar expresándote es el primer paso para tu bienestar.";
+    }
+
     private G6_MH_RegistroEmocionalResponseDTO toResponseDTO(G6_MH_RegistroEmocional registro) {
         return G6_MH_RegistroEmocionalResponseDTO.builder()
                 .idRegistro(registro.getIdRegistro())

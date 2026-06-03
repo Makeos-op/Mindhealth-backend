@@ -3,8 +3,8 @@ package com.upc.mind_health.controllers;
 import com.upc.mind_health.dtos.G6_MH_ChatRequestDTO;
 import com.upc.mind_health.dtos.G6_MH_ChatResponseDTO;
 import com.upc.mind_health.dtos.G6_MH_HistorialSeguroResponseDTO;
+import com.upc.mind_health.dtos.G6_MH_ResumenPostSesionDTO;
 import com.upc.mind_health.services.G6_MH_IaTerapiaService;
-import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -49,15 +49,16 @@ public class G6_MH_IaTerapiaController {
 
     // Finalizar la sesión de chat y archivar de forma segura
     @PutMapping("/sesion/finalizar/{idSesion}")
-    public ResponseEntity<String> finalizarChat(@PathVariable Long idSesion) {
+    public ResponseEntity<?> finalizarChat(@PathVariable Long idSesion) {
         try {
-            iaTerapiaService.finalizarSesionTerapia(idSesion);
-            return ResponseEntity.ok("Sesión finalizada con éxito e historial archivado de forma segura.");
+            G6_MH_ResumenPostSesionDTO resumen = iaTerapiaService.finalizarSesionConResumen(idSesion);
+            return ResponseEntity.ok(resumen);
         } catch (Exception e) {
-            return new ResponseEntity<>("Error al finalizar sesión: " + e.getMessage(), HttpStatus.BAD_REQUEST);
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error al finalizar sesión: " + e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
         }
     }
-
     // HU-10 Escenario 2: Confirmación de seguridad e historial para el paciente
     @GetMapping("/historial-seguro/{idUsuario}")
     public ResponseEntity<List<G6_MH_HistorialSeguroResponseDTO>> obtenerHistorialSeguro(@PathVariable Long idUsuario) {
