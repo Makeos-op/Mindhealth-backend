@@ -73,7 +73,8 @@ public class G6_MH_IaTerapiaService {
                     .build());
         } else {
             sesion = sesionRepository.findById(idSesion)
-                    .orElseThrow(() -> new RuntimeException("Sesión no encontrada."));            if ("FINALIZADA".equals(sesion.getEstado())) {
+                    .orElseThrow(() -> new RuntimeException("Sesión no encontrada."));
+            if ("FINALIZADA".equals(sesion.getEstado())) {
                 throw new RuntimeException("No se pueden enviar mensajes a una sesión que ya ha sido FINALIZADA.");
             }
         }
@@ -90,23 +91,15 @@ public class G6_MH_IaTerapiaService {
         mensajeRepository.save(mensajePaciente);
 
         try {
+            G6_MH_Usuario usuario = sesion.getUsuario();
+            String estiloComunicacion = usuario.getEstiloLenguajeIa() != null ? usuario.getEstiloLenguajeIa() : "INFORMAL";
+
+            String instruccionEstilo = "INFORMAL".equalsIgnoreCase(estiloComunicacion)
+                    ? "Usa un tono INFORMAL, sumamente cercano, empático, tratándolo de 'tú', amigable y juvenil."
+                    : "Usa un tono FORMAL, profesional, clínico, respetuoso, tratándolo de 'usted' y manteniendo distancia terapéutica.";
+
             // SE MANTIENE EL TEXTO EN CLARO PARA EL PROMPT: Asegura que el monitoreo sea real
-            String promptCompleto = "Eres un asistente de inteligencia artificial experto en psicología y soporte " +
-                    "emocional para la plataforma Mind Health. "
-                    + "Tu trabajo es analizar el texto que escribe un paciente en crisis o desahogo. "
-                    + "Analiza el siguiente texto del paciente: \"" + textoUsuario + "\". "
-                    + "REGLAS CRÍTICAS:\n"
-                    + "1. Determina el nivel de urgencia únicamente como uno de estos valores: " +
-                    "[BAJO, MEDIO, ALTO, CRÍTICO]. Si el usuario expresa ideas de hacerse daño o morir, " +
-                    "pon siempre CRÍTICO.\n"
-                    + "2. Da una respuesta altamente empática y humana, validando sus emociones.\n"
-                    + "3. Brinda 2 o 3 recomendaciones o técnicas de relajación claras.\n"
-                    + "4. Si la urgencia es ALTO o CRÍTICO, incluye la línea de ayuda telefónica oficial de salud " +
-                    "mental de Perú (Línea 113 Opción 5).\n\n"
-                    + "Debes responder estrictamente imitando esta estructura exacta separada por barras verticales " +
-                    "(||), sin usar negritas, saltos de línea ni asteriscos para que mi backend pueda procesarla:\n" +
-                    "EMOCION: [Emoción] || URGENCIA: [Nivel] || RESPUESTA: [Tu respuesta empática] || " +
-                    "RECOMENDACIONES: [Recomendación 1; Recomendación 2] || AYUDA: [Línea de ayuda si aplica]";
+            String promptCompleto = construirPromptClinico(textoUsuario, instruccionEstilo);
 
             String respuestaCrudaIA = llamarApiGemini(promptCompleto);
             G6_MH_ChatResponseDTO responseDTO = parsearRespuestaIA(respuestaCrudaIA, textoUsuario);
@@ -139,6 +132,26 @@ public class G6_MH_IaTerapiaService {
             System.err.println("Error crítico de integración con Gemini API: " + e.getMessage());
             throw new RuntimeException("No se pudo procesar el análisis cognitivo con la IA: " + e.getMessage());
         }
+    }
+
+    private String construirPromptClinico(String textoUsuario, String instruccionEstilo) {
+        return "Eres un asistente de inteligencia artificial experto en psicología y soporte " +
+                "emocional para la plataforma Mind Health. "
+                + "Tu trabajo es analizar el texto que escribe un paciente en crisis o desahogo. "
+                + "Analiza el siguiente texto del paciente: \"" + textoUsuario + "\". "
+                + "REGLAS CRÍTICAS:\n"
+                + "1. Determina el nivel de urgencia únicamente como uno de estos valores: " +
+                "[BAJO, MEDIO, ALTO, CRÍTICO]. Si el usuario expresa ideas de hacerse daño o morir, " +
+                "pon siempre CRÍTICO.\n"
+                + "2. Da una respuesta altamente empática y humana, validando sus emociones.\n"
+                + "3. Brinda 2 o 3 recomendaciones o técnicas de relajación claras.\n"
+                + "4. Si la urgencia es ALTO o CRÍTICO, incluye la línea de ayuda telefónica oficial de salud " +
+                "mental de Perú (Línea 113 Opción 5).\n"
+                + "5. REGLA DE ADAPTACIÓN DE LENGUAJE (HU-28): " + instruccionEstilo + "\n\n"
+                + "Debes responder estrictamente imitando esta estructura exacta separada por barras verticales " +
+                "(||), sin usar negritas, saltos de línea ni asteriscos para que mi backend pueda procesarla:\n" +
+                "EMOCION: [Emoción] || URGENCIA: [Nivel] || RESPUESTA: [Tu respuesta empática] || " +
+                "RECOMENDACIONES: [Recomendación 1; Recomendación 2] || AYUDA: [Línea de ayuda si aplica]";
     }
 
     private G6_MH_ChatResponseDTO parsearRespuestaIA(String cruda, String textoOriginal) {
@@ -473,6 +486,22 @@ public class G6_MH_IaTerapiaService {
                 .mensajeNotificacion(msg)
                 .fechaCambio(LocalDateTime.now())
                 .build();
+    }
+
+    // 🌟 HU-38 ESCENARIO 1 y 2: Eliminación física o lógica de una sesión individual
+    @Transactional
+    public String eliminarSesionHistorial(Long idSesion) {
+        G6_MH_SesionTerapia sesion = sesionRepository.findById(idSesion)
+                .orElseThrow(() -> new RuntimeException("La sesión que intenta eliminar no existe."));
+
+        // Primero eliminamos los mensajes asociados a la sesión para evitar fallos de llaves foráneas
+        mensajeRepository.deleteBySesionIdSesion(idSesion);
+
+        // Eliminamos la sesión de manera definitiva
+        sesionRepository.delete(sesion);
+
+        // Retornamos el mensaje exigido por el Escenario 2
+        return "La sesión ha sido eliminada del historial correctamente.";
     }
 
     private String llamarApiGemini(String prompt) {

@@ -6,34 +6,28 @@ import com.upc.mind_health.repositories.G6_MH_UsuarioRepository;
 import com.upc.mind_health.security.G6_MH_AuthResponseDTO;
 import com.upc.mind_health.services.G6_MH_UsuarioService;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.web.bind.annotation.*;
 import com.upc.mind_health.security.G6_MH_JwtUtil;
+import jakarta.validation.Valid;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "*")
 @Tag(name = "Usuarios y Autenticación", description = "Endpoints para el registro y activación de cuentas")
 public class G6_MH_UsuarioController {
 
-    @Autowired
-    private AuthenticationManager authenticationManager;
-
-    @Autowired
-    private G6_MH_UsuarioRepository usuarioRepository;
-
-    @Autowired
-    private G6_MH_JwtUtil jwtUtil;
-
-    @Autowired
-    private G6_MH_UsuarioService usuarioService;
+    private final AuthenticationManager authenticationManager;
+    private final G6_MH_UsuarioRepository usuarioRepository;
+    private final G6_MH_JwtUtil jwtUtil;
+    private final G6_MH_UsuarioService usuarioService;
 
     // POST: /api/auth/registro (Escenario 1)
     @PostMapping("/registro")
@@ -87,7 +81,7 @@ public class G6_MH_UsuarioController {
 
     // POST: /api/auth/login (HU-02 - Escenarios 1 y 2)
     @PostMapping("/login")
-    public ResponseEntity<?> login(@jakarta.validation.Valid @RequestBody G6_MH_LoginDTO loginDTO) {
+    public ResponseEntity<?> login(@Valid @RequestBody G6_MH_LoginDTO loginDTO) {
         try {
             // ESCENARIO 1: Spring Security valida automáticamente correo y contraseña (hash BCrypt)
             org.springframework.security.core.Authentication authentication = authenticationManager.authenticate(
@@ -98,11 +92,10 @@ public class G6_MH_UsuarioController {
             );
 
             // Si pasa la línea anterior, las credenciales son válidas. Obtenemos los datos del usuario de la sesión.
-            org.springframework.security.core.userdetails.User userDetails =
-                    (org.springframework.security.core.userdetails.User) authentication.getPrincipal();
+            String correoAutenticado = authentication.getName();
 
             // Buscamos el usuario completo en la BD para sacar su ID y Nombre real para tu AuthResponseDTO
-            G6_MH_Usuario usuario = usuarioRepository.findByCorreo(userDetails.getUsername())
+            G6_MH_Usuario usuario = usuarioRepository.findByCorreo(correoAutenticado)
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado post-autenticación."));
 
             // Generamos el token JWT usando tu JwtUtil

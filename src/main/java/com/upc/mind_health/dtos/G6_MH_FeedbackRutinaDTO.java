@@ -1,0 +1,11 @@
+package com.upc.mind_health.dtos;
+
+import lombok.*;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class G6_MH_FeedbackRutinaDTO {
+    private Long idRutina;
+    private String utilidad; // "UTIL" o "NO_UTIL"
+}

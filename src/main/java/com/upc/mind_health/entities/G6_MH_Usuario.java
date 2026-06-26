@@ -34,6 +34,30 @@ public class G6_MH_Usuario {
     @Column(name = "fecha_registro")
     private LocalDateTime fechaRegistro;
 
+    @Column(name = "estilo_lenguaje_ia", length = 20, nullable = false)
+    private String estiloLenguajeIa;
+
+    @Column(name = "objetivos_personales", length = 500)
+    private String objetivosPersonales;
+
+    @Column(name = "metodo_terapia_preferido")
+    private String metodoTerapiaPreferido;
+
+    @Column(name = "hora_inicio_recordatorio")
+    private String horaInicioRecordatorio;
+
+    @Column(name = "hora_fin_recordatorio")
+    private String horaFinRecordatorio;
+
+    @Column(name = "calendario_vinculado", nullable = false)
+    private boolean calendarioVinculado;
+
+    @Column(name = "correo_red_apoyo", length = 150)
+    private String correoRedApoyo;
+
+    @Column(name = "notificar_red_apoyo", nullable = false)
+    private boolean notificarRedApoyo;
+
     @Builder.Default
     @Column(name = "activo", nullable = false)
     private Boolean activo = false;

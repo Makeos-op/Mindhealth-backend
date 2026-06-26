@@ -10,4 +10,5 @@ import java.util.List;
 public interface G6_MH_MensajeChatRepository extends JpaRepository<G6_MH_MensajeChat, Long> {
 
     List<G6_MH_MensajeChat> findBySesionIdSesionOrderByFechaEnvioAsc(Long idSesion);
+    void deleteBySesionIdSesion(Long idSesion);
 }
