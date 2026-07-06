@@ -35,8 +35,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-LocalDevJwtSecretOnlyForDevNotForProd}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-LocalDevKey12345}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      MAIL_USERNAME: ${MAIL_USERNAME}
-      MAIL_APP_PASSWORD: ${MAIL_APP_PASSWORD}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      MAIL_REMITENTE: ${MAIL_REMITENTE:-onboarding@resend.dev}
     ports:
       - "8080:8080"
 
