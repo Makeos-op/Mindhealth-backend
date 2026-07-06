@@ -4,9 +4,17 @@ import lombok.RequiredArgsConstructor;
 import com.upc.mind_health.dtos.*;
 import com.upc.mind_health.entities.*;
 import com.upc.mind_health.repositories.*;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.io.ByteArrayOutputStream;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -17,6 +25,56 @@ public class G6_MH_PagoSuscripcionService {
     private final G6_MH_SuscripcionRepository suscripcionRepository;
     private final G6_MH_FacturaRepository facturaRepository;
     private final G6_MH_UsuarioRepository usuarioRepository;
+
+    // 🌟 HU-18 ESCENARIO 1: Seleccionar o cambiar el plan de suscripción
+    @Transactional
+    public G6_MH_SuscripcionResponseDTO seleccionarPlan(G6_MH_SuscripcionRequestDTO dto) {
+        G6_MH_Usuario usuario = usuarioRepository.findById(dto.getIdUsuario())
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        G6_MH_Suscripcion suscripcion = suscripcionRepository.findByUsuarioIdUsuario(dto.getIdUsuario())
+                .orElseGet(() -> G6_MH_Suscripcion.builder()
+                        .usuario(usuario)
+                        .fechaInicio(LocalDate.now())
+                        .build());
+
+        suscripcion.setTipoPlan(dto.getTipoPlan());
+        suscripcion.setEstado("ACTIVA");
+        suscripcion.setFechaInicio(suscripcion.getFechaInicio() != null ? suscripcion.getFechaInicio() : LocalDate.now());
+        suscripcion.setFechaFin(suscripcion.getFechaInicio().plusMonths(1));
+
+        G6_MH_Suscripcion guardada = suscripcionRepository.save(suscripcion);
+        return mapearSuscripcion(guardada);
+    }
+
+    // 🌟 HU-18 ESCENARIO 2: Consultar la suscripción activa del usuario (o ausencia de ella)
+    @Transactional(readOnly = true)
+    public Optional<G6_MH_SuscripcionResponseDTO> obtenerSuscripcionActual(Long idUsuario) {
+        return suscripcionRepository.findByUsuarioIdUsuario(idUsuario).map(this::mapearSuscripcion);
+    }
+
+    private G6_MH_SuscripcionResponseDTO mapearSuscripcion(G6_MH_Suscripcion suscripcion) {
+        return G6_MH_SuscripcionResponseDTO.builder()
+                .idSuscripcion(suscripcion.getIdSuscripcion())
+                .tipoPlan(suscripcion.getTipoPlan())
+                .estado(suscripcion.getEstado())
+                .fechaInicio(suscripcion.getFechaInicio())
+                .fechaFin(suscripcion.getFechaFin())
+                .build();
+    }
+
+    // 🌟 HU-19: Listar los métodos de pago registrados por el usuario
+    @Transactional(readOnly = true)
+    public List<G6_MH_MetodoPagoResponseDTO> listarMetodosPago(Long idUsuario) {
+        return metodoPagoRepository.findByUsuarioIdUsuario(idUsuario).stream()
+                .map(m -> G6_MH_MetodoPagoResponseDTO.builder()
+                        .idMetodoPago(m.getIdMetodoPago())
+                        .tipoMetodo(m.getTipoMetodo())
+                        .proveedor(m.getProveedor())
+                        .predeterminado(m.isPredeterminado())
+                        .build())
+                .collect(Collectors.toList());
+    }
 
     // 🌟 HU-19 ESCENARIO 1: Seleccionar e inscribir método de pago
     @Transactional
@@ -101,13 +159,39 @@ public class G6_MH_PagoSuscripcionService {
         G6_MH_Factura factura = facturaRepository.findById(idFactura)
                 .orElseThrow(() -> new RuntimeException("Factura no encontrada"));
 
-        // Simulación de generación de bytes de un archivo PDF estructurado para el Frontend
-        String plantillaFactura = "MIND HEALTH INC. - FACTURA #" + factura.getIdFactura() + "\n" +
-                "Fecha de Emisión: " + factura.getFecha() + "\n" +
-                "Monto Cobrado: S/. " + factura.getMonto() + "\n" +
-                "Estado del Pago: " + factura.getEstado() + "\n" +
-                "Gracias por confiar en Mind Health.";
+        List<String> lineas = List.of(
+                "MIND HEALTH INC. - FACTURA #" + factura.getIdFactura(),
+                "Fecha de Emisión: " + factura.getFecha(),
+                "Monto Cobrado: S/. " + factura.getMonto(),
+                "Estado del Pago: " + factura.getEstado(),
+                "Gracias por confiar en Mind Health."
+        );
+        return generarPdf(lineas);
+    }
 
-        return plantillaFactura.getBytes();
+    private byte[] generarPdf(List<String> lineas) {
+        try (PDDocument documento = new PDDocument()) {
+            PDPage pagina = new PDPage();
+            documento.addPage(pagina);
+
+            try (PDPageContentStream contenido = new PDPageContentStream(documento, pagina)) {
+                PDType1Font fuente = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+                float y = 720;
+                contenido.beginText();
+                contenido.setFont(fuente, 12);
+                contenido.newLineAtOffset(50, y);
+                for (String linea : lineas) {
+                    contenido.showText(linea);
+                    contenido.newLineAtOffset(0, -20);
+                }
+                contenido.endText();
+            }
+
+            ByteArrayOutputStream salida = new ByteArrayOutputStream();
+            documento.save(salida);
+            return salida.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("No se pudo generar el PDF", e);
+        }
     }
 }

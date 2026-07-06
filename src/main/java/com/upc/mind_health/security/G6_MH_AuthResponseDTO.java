@@ -2,6 +2,8 @@ package com.upc.mind_health.security;
 
 import lombok.*;
 
+import java.util.List;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -12,4 +14,5 @@ public class G6_MH_AuthResponseDTO {
     private Long idUsuario;
     private String nombre;
     private String correo;
+    private List<String> roles;
 }

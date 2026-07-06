@@ -8,4 +8,7 @@ import java.util.List;
 @Repository
 public interface G6_MH_DerivacionRepository extends JpaRepository<G6_MH_Derivacion, Long> {
     List<G6_MH_Derivacion> findByProfesionalUsuarioCorreoOrderByFechaDesc(String correo);
+
+    // Para repartir casos críticos de forma equitativa cuando todos los profesionales están ocupados
+    long countByProfesionalIdPsicologoAndEstadoAtencion(Long idPsicologo, String estadoAtencion);
 }

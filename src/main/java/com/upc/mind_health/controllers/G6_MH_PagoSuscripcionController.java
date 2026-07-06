@@ -7,6 +7,7 @@ import com.upc.mind_health.services.G6_MH_PagoSuscripcionService;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/pagos-suscripciones")
@@ -16,6 +17,25 @@ import java.util.List;
 public class G6_MH_PagoSuscripcionController {
 
     private final G6_MH_PagoSuscripcionService pagoService;
+
+    // HU-18 Escenario 1 - Seleccionar o cambiar el plan de suscripción (Standard, VIP, Gold, Platinum)
+    @PostMapping("/suscripcion")
+    public ResponseEntity<G6_MH_SuscripcionResponseDTO> seleccionarPlan(@RequestBody G6_MH_SuscripcionRequestDTO dto) {
+        return ResponseEntity.ok(pagoService.seleccionarPlan(dto));
+    }
+
+    // HU-18 Escenario 2 - Consultar la suscripción activa del usuario (vacío si continuó sin plan)
+    @GetMapping("/suscripcion/{idUsuario}")
+    public ResponseEntity<G6_MH_SuscripcionResponseDTO> obtenerSuscripcionActual(@PathVariable Long idUsuario) {
+        Optional<G6_MH_SuscripcionResponseDTO> suscripcion = pagoService.obtenerSuscripcionActual(idUsuario);
+        return suscripcion.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    // HU-19 - Listar los métodos de pago ya registrados por el usuario
+    @GetMapping("/metodo/{idUsuario}")
+    public ResponseEntity<List<G6_MH_MetodoPagoResponseDTO>> listarMetodos(@PathVariable Long idUsuario) {
+        return ResponseEntity.ok(pagoService.listarMetodosPago(idUsuario));
+    }
 
     // HU-19 Escenario 1 - Registrar de forma exitosa un método de pago (Billetera digital / Tarjeta)
     @PostMapping("/metodo")

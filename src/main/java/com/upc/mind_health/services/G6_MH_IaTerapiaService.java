@@ -13,7 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -33,21 +35,29 @@ public class G6_MH_IaTerapiaService {
     private final G6_MH_DerivacionRepository derivacionRepository;
     private final G6_MH_PsicologoRepository psicologoRepository;
     private final G6_MH_ColaboracionRepository colaboracionRepository;
+    private final G6_MH_EmailService emailService;
 
     @Value("${mindhealth.gemini.api-key:SIN_LLAVE}")
     private String apiKey;
 
     //(HU-10 - Requiere exactamente 16 caracteres para AES)
-    private static final String SECRET_KEY = "MindHealthKey910";
+    @Value("${mindhealth.encryption.key}")
+    private String secretKey;
 
-    // Métodos utilitarios internos para encriptar y desencriptar
+    // Métodos utilitarios internos para encriptar y desencriptar (AES/CBC con IV aleatorio por mensaje)
     private String cifrarAES(String texto) {
         try {
-            SecretKeySpec keySpec = new SecretKeySpec(SECRET_KEY.getBytes(), "AES");
-            Cipher cipher = Cipher.getInstance("AES");
-            cipher.init(Cipher.ENCRYPT_MODE, keySpec);
+            SecretKeySpec keySpec = new SecretKeySpec(secretKey.getBytes(), "AES");
+            byte[] iv = new byte[16];
+            new SecureRandom().nextBytes(iv);
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            cipher.init(Cipher.ENCRYPT_MODE, keySpec, new IvParameterSpec(iv));
             byte[] cifrado = cipher.doFinal(texto.getBytes());
-            return Base64.getEncoder().encodeToString(cifrado);
+
+            byte[] resultado = new byte[iv.length + cifrado.length];
+            System.arraycopy(iv, 0, resultado, 0, iv.length);
+            System.arraycopy(cifrado, 0, resultado, iv.length, cifrado.length);
+            return Base64.getEncoder().encodeToString(resultado);
         } catch (Exception e) {
             throw new RuntimeException("Error al cifrar el mensaje para la base de datos", e);
         }
@@ -128,9 +138,9 @@ public class G6_MH_IaTerapiaService {
 
             return responseDTO;
 
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             System.err.println("Error crítico de integración con Gemini API: " + e.getMessage());
-            throw new RuntimeException("No se pudo procesar el análisis cognitivo con la IA: " + e.getMessage());
+            throw e;
         }
     }
 
@@ -248,10 +258,14 @@ public class G6_MH_IaTerapiaService {
 
     private String descifrarAES(String textoCifrado) {
         try {
-            SecretKeySpec keySpec = new SecretKeySpec(SECRET_KEY.getBytes(), "AES");
-            Cipher cipher = Cipher.getInstance("AES");
-            cipher.init(Cipher.DECRYPT_MODE, keySpec);
-            byte[] textoPlano = cipher.doFinal(Base64.getDecoder().decode(textoCifrado));
+            byte[] datos = Base64.getDecoder().decode(textoCifrado);
+            byte[] iv = Arrays.copyOfRange(datos, 0, 16);
+            byte[] cifrado = Arrays.copyOfRange(datos, 16, datos.length);
+
+            SecretKeySpec keySpec = new SecretKeySpec(secretKey.getBytes(), "AES");
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            cipher.init(Cipher.DECRYPT_MODE, keySpec, new IvParameterSpec(iv));
+            byte[] textoPlano = cipher.doFinal(cifrado);
             return new String(textoPlano);
         } catch (Exception e) {
             System.err.println("Error al descifrar el mensaje. Se devolverá encriptado por seguridad.");
@@ -328,29 +342,46 @@ public class G6_MH_IaTerapiaService {
 
     private void ejecutarAsignacionAutomatica(G6_MH_SesionTerapia sesion, String emocion) {
         List<G6_MH_Psicologo> disponibles = psicologoRepository.findByDisponibleTrue();
+        G6_MH_Psicologo profesionalAsignado;
+        boolean marcarComoOcupado;
 
         if (!disponibles.isEmpty()) {
-            G6_MH_Psicologo profesionalAsignado = disponibles.get(0);
+            profesionalAsignado = disponibles.get(0);
+            marcarComoOcupado = true;
+        } else {
+            // Una alerta CRÍTICA (posible riesgo de vida) nunca debe perderse por falta de
+            // profesionales "disponibles": si todos están ocupados, se reparte igual al que
+            // tenga menos casos pendientes en vez de descartar el caso silenciosamente.
+            List<G6_MH_Psicologo> todos = psicologoRepository.findAll();
+            if (todos.isEmpty()) {
+                System.err.println("No hay profesionales registrados para atender un caso CRÍTICO.");
+                return;
+            }
+            profesionalAsignado = todos.stream()
+                    .min(java.util.Comparator.comparingLong(p ->
+                            derivacionRepository.countByProfesionalIdPsicologoAndEstadoAtencion(p.getIdPsicologo(), "PENDIENTE")))
+                    .orElse(todos.get(0));
+            marcarComoOcupado = false;
+        }
 
-            G6_MH_Derivacion nuevaDerivacion = G6_MH_Derivacion.builder()
-                    .motivo("Derivación Inmediata por Alerta IA: " + emocion)
-                    .fecha(java.time.LocalDate.now())
-                    .sesion(sesion)
-                    .profesional(profesionalAsignado)
-                    .build();
+        G6_MH_Derivacion nuevaDerivacion = G6_MH_Derivacion.builder()
+                .motivo("Derivación Inmediata por Alerta IA: " + emocion)
+                .fecha(java.time.LocalDate.now())
+                .sesion(sesion)
+                .profesional(profesionalAsignado)
+                .build();
 
-            derivacionRepository.save(nuevaDerivacion);
+        derivacionRepository.save(nuevaDerivacion);
 
+        if (marcarComoOcupado) {
             profesionalAsignado.setDisponible(false);
             psicologoRepository.save(profesionalAsignado);
-
-            //ESCENARIO 1: Simulación de Notificación Inteligente Push/Email
-            dispararNotificacionInteligente(nuevaDerivacion, profesionalAsignado.getUsuario().getCorreo());
-
-            System.out.println("Caso derivado linealmente al profesional ID: " + profesionalAsignado.getIdPsicologo());
-        } else {
-            System.out.println("Sin profesionales disponibles.");
         }
+
+        //ESCENARIO 1: Notificación Inteligente Push/Email
+        dispararNotificacionInteligente(nuevaDerivacion, profesionalAsignado.getUsuario().getCorreo());
+
+        System.out.println("Caso derivado al profesional ID: " + profesionalAsignado.getIdPsicologo());
     }
 
     @Transactional(readOnly = true)
@@ -372,10 +403,13 @@ public class G6_MH_IaTerapiaService {
     }
 
     private void dispararNotificacionInteligente(G6_MH_Derivacion derivacion, String correoDestino) {
-        System.out.println("[NOTIFICACIÓN INTELIGENTE]");
-        System.out.println("ENVIANDO ALERTA PUSH A: " + correoDestino);
-        System.out.println("MENSAJE: ¡ALERTA DE CRISIS EMOCIONAL! Se te ha asignado el caso de la Sesión #"
-                + derivacion.getSesion().getIdSesion() + ". Motivo: " + derivacion.getMotivo());
+        emailService.enviarCorreo(
+                correoDestino,
+                "Alerta de crisis emocional — Mind Health",
+                "Se te ha asignado un caso crítico (Sesión #" + derivacion.getSesion().getIdSesion() + ").\n"
+                        + "Motivo: " + derivacion.getMotivo() + "\n\n"
+                        + "Ingresa a tu panel de profesional para revisar el detalle y atender el caso."
+        );
     }
 
     @Transactional
@@ -445,6 +479,13 @@ public class G6_MH_IaTerapiaService {
 
         colaboracionRepository.save(colaboracion);
 
+        emailService.enviarCorreo(
+                receptor.getUsuario().getCorreo(),
+                "Solicitud de coordinación de caso — Mind Health",
+                "El Dr(a). " + emisor.getNombre() + " te ha invitado a coordinar en un caso complejo.\n"
+                        + "Ingresa a tu panel de profesional, sección Coordinación, para aceptar o rechazar la solicitud."
+        );
+
         return G6_MH_CoordinacionResponseDTO.builder()
                 .idColaboracion(colaboracion.getIdColaboracion())
                 .nombreEmisor(emisor.getNombre())
@@ -477,6 +518,13 @@ public class G6_MH_IaTerapiaService {
                 ? "Colaboración aceptada. Espacio compartido habilitado para el caso."
                 : "Colaboración rechazada. Mensaje enviado al emisor.";
 
+        emailService.enviarCorreo(
+                colaboracion.getEmisor().getUsuario().getCorreo(),
+                acepta ? "Colaboración aceptada — Mind Health" : "Colaboración rechazada — Mind Health",
+                "El Dr(a). " + colaboracion.getReceptor().getNombre() + " ha "
+                        + (acepta ? "aceptado" : "rechazado") + " tu solicitud de coordinación de caso."
+        );
+
         return G6_MH_CoordinacionResponseDTO.builder()
                 .idColaboracion(colaboracion.getIdColaboracion())
                 .nombreEmisor(colaboracion.getEmisor().getNombre())
@@ -484,6 +532,89 @@ public class G6_MH_IaTerapiaService {
                 .estadoActual(colaboracion.getEstadoSolicitud())
                 .notasDeCasoCompartidas(colaboracion.getObservacionesCompartidas())
                 .mensajeNotificacion(msg)
+                .fechaCambio(LocalDateTime.now())
+                .build();
+    }
+
+    // HU-13: Bandeja de solicitudes de coordinación pendientes de responder
+    @Transactional(readOnly = true)
+    public List<G6_MH_CoordinacionResponseDTO> listarColaboracionesPendientes(String correoReceptor) {
+        return colaboracionRepository.findByReceptorUsuarioCorreo(correoReceptor).stream()
+                .filter(colaboracion -> "PENDIENTE".equals(colaboracion.getEstadoSolicitud()))
+                .map(colaboracion -> G6_MH_CoordinacionResponseDTO.builder()
+                        .idColaboracion(colaboracion.getIdColaboracion())
+                        .nombreEmisor(colaboracion.getEmisor().getNombre())
+                        .nombreReceptor(colaboracion.getReceptor().getNombre())
+                        .estadoActual(colaboracion.getEstadoSolicitud())
+                        .notasDeCasoCompartidas(colaboracion.getObservacionesCompartidas())
+                        .fechaCambio(colaboracion.getFechaSolicitud())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    // HU-13 ESCENARIO 2: Espacio de coordinación compartido — casos aceptados donde el profesional participa
+    @Transactional(readOnly = true)
+    public List<G6_MH_CoordinacionResponseDTO> listarColaboracionesAceptadas(String correoProfesional) {
+        return colaboracionRepository
+                .findByEstadoSolicitudAndEmisorUsuarioCorreoOrEstadoSolicitudAndReceptorUsuarioCorreo(
+                        "ACEPTADA", correoProfesional, "ACEPTADA", correoProfesional)
+                .stream()
+                .map(colaboracion -> G6_MH_CoordinacionResponseDTO.builder()
+                        .idColaboracion(colaboracion.getIdColaboracion())
+                        .nombreEmisor(colaboracion.getEmisor().getNombre())
+                        .nombreReceptor(colaboracion.getReceptor().getNombre())
+                        .estadoActual(colaboracion.getEstadoSolicitud())
+                        .notasDeCasoCompartidas(colaboracion.getObservacionesCompartidas())
+                        .fechaCambio(colaboracion.getFechaSolicitud())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    // HU-13 ESCENARIO 2: Agregar una observación nueva al espacio compartido (se concatena, no se sobreescribe)
+    @Transactional
+    public G6_MH_CoordinacionResponseDTO agregarObservacionColaboracion(Long idColaboracion, String correoAutor, String texto) {
+        if (texto == null || texto.trim().isEmpty()) {
+            throw new RuntimeException("La observación no puede estar vacía.");
+        }
+
+        G6_MH_Colaboracion colaboracion = colaboracionRepository.findById(idColaboracion)
+                .orElseThrow(() -> new RuntimeException("Registro de colaboración no encontrado"));
+
+        if (!"ACEPTADA".equals(colaboracion.getEstadoSolicitud())) {
+            throw new RuntimeException("Solo se pueden agregar observaciones a colaboraciones aceptadas.");
+        }
+
+        boolean esEmisor = colaboracion.getEmisor().getUsuario().getCorreo().equalsIgnoreCase(correoAutor);
+        boolean esReceptor = colaboracion.getReceptor().getUsuario().getCorreo().equalsIgnoreCase(correoAutor);
+        if (!esEmisor && !esReceptor) {
+            throw new RuntimeException("No tienes permiso para agregar observaciones a este caso.");
+        }
+
+        String nombreAutor = esEmisor ? colaboracion.getEmisor().getNombre() : colaboracion.getReceptor().getNombre();
+        String correoDestino = esEmisor
+                ? colaboracion.getReceptor().getUsuario().getCorreo()
+                : colaboracion.getEmisor().getUsuario().getCorreo();
+
+        String entradaNueva = "[" + LocalDateTime.now() + "] " + nombreAutor + ": " + texto.trim() + "\n---\n";
+        String historialActual = colaboracion.getObservacionesCompartidas();
+        colaboracion.setObservacionesCompartidas(
+                historialActual == null || historialActual.isBlank() ? entradaNueva : historialActual + entradaNueva);
+        colaboracionRepository.save(colaboracion);
+
+        emailService.enviarCorreo(
+                correoDestino,
+                "Nueva observación en caso compartido — Mind Health",
+                "El Dr(a). " + nombreAutor + " agregó una nueva observación al caso que coordinan:\n\n" + texto.trim()
+                        + "\n\nIngresa a tu panel de profesional, sección Coordinación, para ver el historial completo."
+        );
+
+        return G6_MH_CoordinacionResponseDTO.builder()
+                .idColaboracion(colaboracion.getIdColaboracion())
+                .nombreEmisor(colaboracion.getEmisor().getNombre())
+                .nombreReceptor(colaboracion.getReceptor().getNombre())
+                .estadoActual(colaboracion.getEstadoSolicitud())
+                .notasDeCasoCompartidas(colaboracion.getObservacionesCompartidas())
+                .mensajeNotificacion("Observación agregada al espacio compartido.")
                 .fechaCambio(LocalDateTime.now())
                 .build();
     }
@@ -521,14 +652,29 @@ public class G6_MH_IaTerapiaService {
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-        org.springframework.http.ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                geminiApiUrl + apiKey,
-                org.springframework.http.HttpMethod.POST,
-                entity,
-                new org.springframework.core.ParameterizedTypeReference<>() {}
-        );
+        try {
+            org.springframework.http.ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    geminiApiUrl + apiKey,
+                    org.springframework.http.HttpMethod.POST,
+                    entity,
+                    new org.springframework.core.ParameterizedTypeReference<>() {}
+            );
 
-        Map<String, Object> responseBody = response.getBody();
-        return obtenerTextoDeRespuestaGoogle(responseBody);
+            Map<String, Object> responseBody = response.getBody();
+            return obtenerTextoDeRespuestaGoogle(responseBody);
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            System.err.println("Error de la API de Gemini [" + e.getStatusCode() + "]: " + e.getResponseBodyAsString());
+            if (e.getStatusCode().value() == 503) {
+                throw new RuntimeException(
+                        "Mind está recibiendo muchas conversaciones en este momento y no puede responder. " +
+                        "Espera unos minutos y vuelve a intentarlo; si necesitas ayuda ahora mismo, comunícate a la Línea 113 Opción 5.");
+            }
+            throw new RuntimeException(
+                    "Mind no está disponible en este momento. Por favor, inténtalo de nuevo en unos minutos.");
+        } catch (org.springframework.web.client.RestClientException e) {
+            System.err.println("Error de conexión con la API de Gemini: " + e.getMessage());
+            throw new RuntimeException(
+                    "No pudimos conectar con Mind en este momento. Revisa tu conexión e inténtalo nuevamente.");
+        }
     }
 }

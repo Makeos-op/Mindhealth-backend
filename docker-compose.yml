@@ -4,9 +4,9 @@ services:
     container_name: mindhealth_db
     restart: always
     environment:
-      POSTGRES_DB: MH_G6_BD
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgre
+      POSTGRES_DB: ${DB_NAME:-MH_G6_BD}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgre}
     ports:
       - "5432:5432"
     volumes:
@@ -28,10 +28,15 @@ services:
         condition: service_healthy
     environment:
       #SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/MH_G6_BD
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgre
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME:-MH_G6_BD}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-postgre}
       PORT: 8080
+      JWT_SECRET: ${JWT_SECRET:-LocalDevJwtSecretOnlyForDevNotForProd}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-LocalDevKey12345}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_APP_PASSWORD: ${MAIL_APP_PASSWORD}
     ports:
       - "8080:8080"
 

@@ -13,6 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/emociones")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 @Tag(name = "Emociones", description = "Registro de emociones diarias")
 public class G6_MH_RegistroEmocionalController {
 
@@ -32,6 +33,13 @@ public class G6_MH_RegistroEmocionalController {
             @PathVariable Long idUsuario) {
         List<G6_MH_RegistroEmocionalResponseDTO> historial = registroEmocionalService.obtenerHistorial(idUsuario);
         return ResponseEntity.ok(historial);
+    }
+
+    // HU-15: Indica si ya existe un check-in registrado hoy (204 si aún no hay ninguno)
+    @GetMapping("/{idUsuario}/hoy")
+    public ResponseEntity<G6_MH_RegistroEmocionalResponseDTO> obtenerRegistroDeHoy(@PathVariable Long idUsuario) {
+        G6_MH_RegistroEmocionalResponseDTO registroDeHoy = registroEmocionalService.obtenerRegistroDeHoy(idUsuario);
+        return registroDeHoy != null ? ResponseEntity.ok(registroDeHoy) : ResponseEntity.noContent().build();
     }
 
     // HU-16 Escenario 1: Análisis automático del impacto de eventos cotidianos

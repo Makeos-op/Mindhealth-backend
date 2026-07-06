@@ -18,6 +18,7 @@ public class G6_MH_ContenidoTerapeuticoService {
     private final G6_MH_CalificacionContenidoRepository calificacionRepository;
     private final G6_MH_UsuarioRepository usuarioRepository;
     private final G6_MH_SesionTerapiaRepository sesionRepository;
+    private final G6_MH_FavoritoRepository favoritoRepository;
 
     // 🌟 HU-22 ESCENARIOS 1, 2 y 3: Recomendar contenido dinámicamente basado en el estado emocional
     @Transactional(readOnly = true)
@@ -127,5 +128,45 @@ public class G6_MH_ContenidoTerapeuticoService {
         }
 
         return catalogoBase;
+    }
+
+    // 🌟 HU-37 ESCENARIO 1: Guardar un ejercicio/recurso terapéutico en favoritos
+    @Transactional
+    public String agregarFavorito(G6_MH_FavoritoRequestDTO dto) {
+        if (favoritoRepository.findByUsuarioIdUsuarioAndContenidoIdContenido(dto.getIdUsuario(), dto.getIdContenido()).isPresent()) {
+            return "Este contenido ya estaba guardado en tus favoritos.";
+        }
+
+        G6_MH_ContenidoTerapeutico contenido = contenidoRepository.findById(dto.getIdContenido())
+                .orElseThrow(() -> new RuntimeException("Contenido terapéutico no encontrado."));
+        G6_MH_Usuario usuario = usuarioRepository.findById(dto.getIdUsuario())
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado."));
+
+        G6_MH_Favorito favorito = G6_MH_Favorito.builder()
+                .usuario(usuario)
+                .contenido(contenido)
+                .fechaGuardado(LocalDateTime.now())
+                .build();
+
+        favoritoRepository.save(favorito);
+        return "Guardado en tus favoritos correctamente.";
+    }
+
+    // 🌟 HU-37: Quitar un recurso de favoritos
+    @Transactional
+    public String quitarFavorito(Long idUsuario, Long idContenido) {
+        G6_MH_Favorito favorito = favoritoRepository.findByUsuarioIdUsuarioAndContenidoIdContenido(idUsuario, idContenido)
+                .orElseThrow(() -> new RuntimeException("Este contenido no estaba en tus favoritos."));
+
+        favoritoRepository.delete(favorito);
+        return "Se quitó de tus favoritos.";
+    }
+
+    // 🌟 HU-37 ESCENARIO 2: Listar los favoritos guardados por el usuario
+    @Transactional(readOnly = true)
+    public List<G6_MH_ContenidoTerapeutico> listarFavoritos(Long idUsuario) {
+        return favoritoRepository.findByUsuarioIdUsuarioOrderByFechaGuardadoDesc(idUsuario).stream()
+                .map(G6_MH_Favorito::getContenido)
+                .collect(Collectors.toList());
     }
 }

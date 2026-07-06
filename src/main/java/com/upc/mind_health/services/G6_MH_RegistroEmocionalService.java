@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,6 +28,10 @@ public class G6_MH_RegistroEmocionalService {
         G6_MH_Usuario usuario = usuarioRepository.findById(dto.getIdUsuario())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
+        if (registroRepository.findByUsuarioIdUsuarioAndFecha(dto.getIdUsuario(), LocalDate.now()).isPresent()) {
+            throw new RuntimeException("Ya registraste tu estado de ánimo hoy. Vuelve mañana.");
+        }
+
         G6_MH_RegistroEmocional registro = G6_MH_RegistroEmocional.builder()
                 .usuario(usuario)
                 .emocion(dto.getEmocion())
@@ -38,6 +43,14 @@ public class G6_MH_RegistroEmocionalService {
         registro = registroRepository.save(registro);
 
         return toResponseDTO(registro);
+    }
+
+    // HU-15: Consulta si ya existe un check-in registrado hoy, para bloquear el formulario en el frontend
+    @Transactional(readOnly = true)
+    public G6_MH_RegistroEmocionalResponseDTO obtenerRegistroDeHoy(Long idUsuario) {
+        Optional<G6_MH_RegistroEmocional> registroDeHoy =
+                registroRepository.findByUsuarioIdUsuarioAndFecha(idUsuario, LocalDate.now());
+        return registroDeHoy.map(this::toResponseDTO).orElse(null);
     }
 
     @Transactional(readOnly = true)

@@ -4,9 +4,16 @@ import lombok.RequiredArgsConstructor;
 import com.upc.mind_health.dtos.*;
 import com.upc.mind_health.entities.*;
 import com.upc.mind_health.repositories.*;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -26,27 +33,48 @@ public class G6_MH_ReporteNotaService {
         // Recuperamos sus últimos registros emocionales
         List<G6_MH_RegistroEmocional> ultimos = registroRepository.findUltimosRegistros(idUsuario, 7);
 
-        StringBuilder contenidoReporte = new StringBuilder();
-        contenidoReporte.append("=========================================\n")
-                .append("    MIND HEALTH - REPORTE EVOLUTIVO DE: ").append(usuario.getNombre().toUpperCase()).append("\n")
-                .append("=========================================\n\n")
-                .append("Historial de Actividad de los últimos 7 días:\n")
-                .append("-----------------------------------------\n");
+        List<String> lineas = new ArrayList<>();
+        lineas.add("MIND HEALTH - REPORTE EVOLUTIVO DE: " + usuario.getNombre().toUpperCase());
+        lineas.add("Historial de actividad de los últimos 7 días:");
+        lineas.add("");
 
         if (ultimos.isEmpty()) {
-            contenidoReporte.append("No se registraron datos emocionales esta semana.\n");
+            lineas.add("No se registraron datos emocionales esta semana.");
         } else {
             for (G6_MH_RegistroEmocional reg : ultimos) {
-                contenidoReporte.append("[").append(reg.getFecha()).append("] ")
-                        .append("Ánimo: ").append(reg.getPuntaje()).append("/5 | ")
-                        .append("Emoción: ").append(reg.getEmocion()).append("\n")
-                        .append("Detalle: ").append(reg.getDescripcion()).append("\n")
-                        .append("-----------------------------------------\n");
+                lineas.add("[" + reg.getFecha() + "] Ánimo: " + reg.getPuntaje() + "/5 | Emoción: " + reg.getEmocion());
+                lineas.add("Detalle: " + reg.getDescripcion());
+                lineas.add("");
             }
         }
 
-        // Retornamos el torrente de bytes del documento para que el cliente lo interprete como un PDF nativo
-        return contenidoReporte.toString().getBytes();
+        return generarPdf(lineas);
+    }
+
+    private byte[] generarPdf(List<String> lineas) {
+        try (PDDocument documento = new PDDocument()) {
+            PDPage pagina = new PDPage();
+            documento.addPage(pagina);
+
+            try (PDPageContentStream contenido = new PDPageContentStream(documento, pagina)) {
+                PDType1Font fuente = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+                float y = 720;
+                contenido.beginText();
+                contenido.setFont(fuente, 11);
+                contenido.newLineAtOffset(50, y);
+                for (String linea : lineas) {
+                    contenido.showText(linea);
+                    contenido.newLineAtOffset(0, -16);
+                }
+                contenido.endText();
+            }
+
+            ByteArrayOutputStream salida = new ByteArrayOutputStream();
+            documento.save(salida);
+            return salida.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("No se pudo generar el PDF", e);
+        }
     }
 
     // 🌟 HU-41 ESCENARIO 1: Creación y validación de una nota personal

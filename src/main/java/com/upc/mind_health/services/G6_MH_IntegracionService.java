@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class G6_MH_IntegracionService {
 
     private final G6_MH_UsuarioRepository usuarioRepository;
+    private final G6_MH_EmailService emailService;
 
     // 🌟 HU-32 ESCENARIO 1: Vincular servicio externo de calendario
     @Transactional
@@ -65,9 +66,13 @@ public class G6_MH_IntegracionService {
             throw new RuntimeException("No has autorizado ningún contacto en tu red de apoyo para recibir reportes.");
         }
 
-        // Simulación de armado y envío de correo SMTP saliente
-        System.out.println("[SMTP MAIL] Enviando reporte a: " + usuario.getCorreoRedApoyo());
-        System.out.println("[CONTENIDO] Hola, compartimos el avance emocional de " + usuario.getNombre() + " de los últimos 7 días...");
+        emailService.enviarCorreo(
+                usuario.getCorreoRedApoyo(),
+                "Reporte semanal de " + usuario.getNombre() + " — Mind Health",
+                "Hola,\n\nCompartimos el avance emocional de " + usuario.getNombre() + " de los últimos 7 días.\n"
+                        + "Este reporte se envía porque " + usuario.getNombre()
+                        + " te autorizó como contacto de confianza en su Red de Apoyo."
+        );
 
         return "El sistema envió automáticamente el reporte semanal al correo electrónico del contacto autorizado ("
                 + usuario.getCorreoRedApoyo() + ") con éxito.";

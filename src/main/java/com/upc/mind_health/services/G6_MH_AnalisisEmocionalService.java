@@ -84,16 +84,32 @@ public class G6_MH_AnalisisEmocionalService {
             return alertaPreventiva;
         }
 
-        // ESCENARIO 2: Notificaciones de progreso positivo (Puntaje 4 o 5)
-        if (ultimoRegistro.getPuntaje() >= 4) {
+        // ESCENARIO 2 (HU-17): Tendencia positiva evaluada sobre los últimos 7 días, no solo el último registro
+        G6_MH_AlertaResponseDTO progresoPositivo = evaluarTendenciaPositivaUltimos7Dias(idUsuario);
+        if (progresoPositivo != null) {
+            return progresoPositivo;
+        }
+
+        return null;
+    }
+
+    private G6_MH_AlertaResponseDTO evaluarTendenciaPositivaUltimos7Dias(Long idUsuario) {
+        List<G6_MH_RegistroEmocional> ultimaSemana = registroRepository.findUltimosRegistros(idUsuario, 7);
+
+        long diasFelices = ultimaSemana.stream().filter(r -> r.getPuntaje() >= 4).count();
+
+        // Tendencia positiva: la mayoría de los últimos 7 días registrados fueron de buen ánimo
+        if (ultimaSemana.size() >= 4 && diasFelices > ultimaSemana.size() / 2.0) {
             return G6_MH_AlertaResponseDTO.builder()
                     .tipo("PROGRESO_POSITIVO")
-                    .mensaje("¡Excelente avance! El sistema reconoce tu progreso y estabilidad emocional el día de hoy. ¡Sigue cuidando de ti!")
-                    .recomendaciones(Arrays.asList("Registrar de forma constante las razones de tu bienestar te ayudará a sostener este gran patrón."))
+                    .mensaje("¡Estás avanzando! Esta semana tuviste " + diasFelices
+                            + " días felices de tus últimos " + ultimaSemana.size() + " registros. Sigue así.")
+                    .recomendaciones(Arrays.asList(
+                            "Registrar de forma constante las razones de tu bienestar te ayudará a sostener este gran patrón."
+                    ))
                     .requiereProfesional(false)
                     .build();
         }
-
         return null;
     }
 

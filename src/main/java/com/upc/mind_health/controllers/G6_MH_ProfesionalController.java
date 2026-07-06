@@ -13,6 +13,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/terapia-ia/profesional")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class G6_MH_ProfesionalController {
 
     private final G6_MH_IaTerapiaService iaTerapiaService;
@@ -52,5 +53,31 @@ public class G6_MH_ProfesionalController {
             @RequestParam(required = false) String notas,
             Principal principal) {
         return ResponseEntity.ok(iaTerapiaService.gestionarRespuestaColaboracion(idColaboracion, principal.getName(), acepta, notas));
+    }
+
+    // HU-13: Bandeja de solicitudes de coordinación pendientes de responder
+    @GetMapping("/coordinaciones/pendientes")
+    public ResponseEntity<List<G6_MH_CoordinacionResponseDTO>> listarColaboracionesPendientes(Principal principal) {
+        return ResponseEntity.ok(iaTerapiaService.listarColaboracionesPendientes(principal.getName()));
+    }
+
+    // HU-13 Escenario 2: Casos ya aceptados donde el profesional puede coordinar en el espacio compartido
+    @GetMapping("/coordinaciones/aceptadas")
+    public ResponseEntity<List<G6_MH_CoordinacionResponseDTO>> listarColaboracionesAceptadas(Principal principal) {
+        return ResponseEntity.ok(iaTerapiaService.listarColaboracionesAceptadas(principal.getName()));
+    }
+
+    // HU-13 Escenario 2: Agregar una nueva observación al espacio compartido de un caso aceptado
+    @PostMapping("/coordinaciones/{idColaboracion}/observaciones")
+    public ResponseEntity<?> agregarObservacionColaboracion(
+            @PathVariable Long idColaboracion,
+            @RequestBody G6_MH_ObservacionColaboracionRequestDTO requestDTO,
+            Principal principal) {
+        try {
+            var resultado = iaTerapiaService.agregarObservacionColaboracion(idColaboracion, principal.getName(), requestDTO.getTexto());
+            return ResponseEntity.ok(resultado);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 }

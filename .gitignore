@@ -1,6 +1,12 @@
 .idea/
 target/
 *.iml
+.env
+.env.*
+!.env.example
+
+# Documentación interna del proyecto, no debe publicarse en el repositorio
+Contexto/
 
 HELP.md
 target/

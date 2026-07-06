@@ -45,4 +45,24 @@ public class G6_MH_ContenidoTerapeuticoController {
     public ResponseEntity<List<G6_MH_ContenidoTerapeutico>> obtenerPorObjetivos(@PathVariable Long idUsuario) {
         return ResponseEntity.ok(contenidoService.obtenerContenidoPorObjetivosUsuario(idUsuario));
     }
+
+    // HU-37 Escenario 1
+    @Operation(summary = "Guardar un recurso terapéutico en la lista de favoritos del usuario")
+    @PostMapping("/favoritos")
+    public ResponseEntity<String> agregarFavorito(@RequestBody G6_MH_FavoritoRequestDTO dto) {
+        return ResponseEntity.ok(contenidoService.agregarFavorito(dto));
+    }
+
+    @Operation(summary = "Quitar un recurso terapéutico de la lista de favoritos del usuario")
+    @DeleteMapping("/favoritos/{idUsuario}/{idContenido}")
+    public ResponseEntity<String> quitarFavorito(@PathVariable Long idUsuario, @PathVariable Long idContenido) {
+        return ResponseEntity.ok(contenidoService.quitarFavorito(idUsuario, idContenido));
+    }
+
+    // HU-37 Escenario 2
+    @Operation(summary = "Listar los recursos terapéuticos guardados como favoritos por el usuario")
+    @GetMapping("/favoritos/{idUsuario}")
+    public ResponseEntity<List<G6_MH_ContenidoTerapeutico>> listarFavoritos(@PathVariable Long idUsuario) {
+        return ResponseEntity.ok(contenidoService.listarFavoritos(idUsuario));
+    }
 }

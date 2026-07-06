@@ -39,6 +39,9 @@ public class G6_MH_UsuarioController {
             nuevoUsuario.setContrasena(request.getContrasena());
             nuevoUsuario.setEdad(request.getEdad());
             nuevoUsuario.setGenero(request.getGenero());
+            if (request.getMetodoTerapiaPreferido() != null && !request.getMetodoTerapiaPreferido().isBlank()) {
+                nuevoUsuario.setMetodoTerapiaPreferido(request.getMetodoTerapiaPreferido());
+            }
 
             G6_MH_Usuario registrado = usuarioService.registrarUsuario(nuevoUsuario);
 
@@ -108,6 +111,7 @@ public class G6_MH_UsuarioController {
                     .idUsuario(usuario.getIdUsuario())
                     .nombre(usuario.getNombre())
                     .correo(usuario.getCorreo())
+                    .roles(usuario.getRoles().stream().map(com.upc.mind_health.entities.G6_MH_Rol::getName).toList())
                     .build();
 
             return new ResponseEntity<>(respuesta, HttpStatus.OK);

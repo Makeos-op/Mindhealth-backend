@@ -20,6 +20,7 @@ public class G6_MH_SeguridadAccesoService {
 
     private final G6_MH_HistorialAccesoRepository accesoRepository;
     private final G6_MH_UsuarioRepository usuarioRepository;
+    private final G6_MH_EmailService emailService;
 
     // ESCENARIO 1: Evaluar si el Login es sospechoso y registrarlo
     @Transactional
@@ -49,9 +50,15 @@ public class G6_MH_SeguridadAccesoService {
         nuevoAcceso = accesoRepository.save(nuevoAcceso);
 
         if (sospechoso) {
-            System.out.println("ALERTA DE SEGURIDAD AUTOMÁTICA");
-            System.out.println("Acceso inusual detectado para: " + usuario.getNombre());
-            System.out.println("Notificación preventiva enviada a su casilla: " + usuario.getCorreo());
+            emailService.enviarCorreo(
+                    usuario.getCorreo(),
+                    "Alerta de seguridad — Mind Health",
+                    "Hola " + usuario.getNombre() + ",\n\n"
+                            + "Detectamos un acceso a tu cuenta desde una ubicación inusual (" + dto.getUbicacion()
+                            + ") en el dispositivo " + dto.getDispositivo() + ".\n"
+                            + "Si fuiste tú, puedes ignorar este mensaje. Si no reconoces este acceso, "
+                            + "cierra tu sesión y cambia tu contraseña desde Ajustes > Seguridad."
+            );
         }
 
         return entityToDto(nuevoAcceso);

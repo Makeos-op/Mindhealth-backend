@@ -44,7 +44,7 @@ public class G6_MH_IaTerapiaController {
             return new ResponseEntity<>(resultado, HttpStatus.OK);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
-            error.put("error", "Error: " + e.getMessage());
+            error.put("error", e.getMessage());
             return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
         }
     }

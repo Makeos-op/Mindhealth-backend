@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -34,7 +36,11 @@ public class G6_MH_SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
+                .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
+                        // 0. Preflight CORS: el navegador nunca envía el header Authorization
+                        // en OPTIONS, así que debe permitirse sin autenticación
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // 1. Endpoints Públicos (Acceso libre para Login, Registro y Swagger)
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
@@ -45,7 +51,8 @@ public class G6_MH_SecurityConfig {
 
                         // 3. Endpoints exclusivos para el rol PACIENTE
                         .requestMatchers("/api/terapia-ia/paciente/**","/api/analisis-emocional/**",
-                                "/api/emociones/**", "/api/privacidad/**", "/api/seguridad/**").hasAuthority("ROLE_PACIENTE")
+                                "/api/emociones/**", "/api/privacidad/**", "/api/seguridad/**",
+                                "/api/pagos-suscripciones/**").hasAuthority("ROLE_PACIENTE")
 
                         // 4. Endpoints generales de Usuario: Requieren estar autenticado
                         .requestMatchers("/api/usuario/**").authenticated()

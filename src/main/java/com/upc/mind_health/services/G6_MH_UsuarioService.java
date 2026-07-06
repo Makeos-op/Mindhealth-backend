@@ -30,6 +30,9 @@ public class G6_MH_UsuarioService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private G6_MH_EmailService emailService;
+
     // ==========================================
     // HU-01: REGISTRO Y ACTIVACIÓN DE CUENTA
     // ==========================================
@@ -77,6 +80,8 @@ public class G6_MH_UsuarioService {
         nuevoUsuario.setContrasena(passwordEncoder.encode(nuevoUsuario.getContrasena()));
         nuevoUsuario.setActivo(false);
         nuevoUsuario.setFechaRegistro(LocalDateTime.now());
+        // Valor predeterminado para pacientes; se ajusta luego vía preferencias de terapia (HU-28)
+        nuevoUsuario.setEstiloLenguajeIa("INFORMAL");
 
         G6_MH_Rol rolPaciente = rolRepository.findByName("ROLE_PACIENTE")
                 .orElseThrow(() -> new RuntimeException("Error: El rol ROLE_PACIENTE no está inicializado."));
@@ -121,11 +126,11 @@ public class G6_MH_UsuarioService {
 
     private void enviarCorreoVerificacion(String correoDestino, String token) {
         String enlaceActivacion = "http://localhost:8080/api/auth/verificar?token=" + token;
-        System.out.println("=========================================================");
-        System.out.println("MOCK EMAIL SERVICE: Enviando correo a " + correoDestino);
-        System.out.println("Haga clic en el siguiente enlace para activar su cuenta de Mind Health:");
-        System.out.println(enlaceActivacion);
-        System.out.println("=========================================================");
+        emailService.enviarCorreo(
+                correoDestino,
+                "Confirma tu cuenta de Mind Health",
+                "Haz clic en el siguiente enlace para activar tu cuenta de Mind Health:\n" + enlaceActivacion
+        );
     }
 
     // HU-03: RECUPERACIÓN DE CONTRASEÑA
@@ -144,10 +149,13 @@ public class G6_MH_UsuarioService {
                 .build();
         tokenRepository.save(tokenRecuperacion);
 
-        System.out.println("=========================================================");
-        System.out.println("MOCK EMAIL SERVICE: Recuperación de Contraseña");
-        System.out.println("Enlace de recuperación: http://localhost:8080/api/auth/restablecer?token=" + tokenUUID);
-        System.out.println("=========================================================");
+        String enlaceRecuperacion = "http://localhost:8080/api/auth/restablecer?token=" + tokenUUID;
+        emailService.enviarCorreo(
+                usuario.getCorreo(),
+                "Recuperación de contraseña — Mind Health",
+                "Recibimos una solicitud para restablecer tu contraseña. Usa el siguiente enlace (válido por 15 minutos):\n"
+                        + enlaceRecuperacion
+        );
     }
 
     // Escenario 2: Restablecer contraseña
