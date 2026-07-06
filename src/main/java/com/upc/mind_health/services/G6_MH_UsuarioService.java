@@ -8,6 +8,7 @@ import com.upc.mind_health.repositories.G6_MH_RolRepository;
 import com.upc.mind_health.repositories.G6_MH_UsuarioRepository;
 import com.upc.mind_health.repositories.G6_MH_TokenRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +33,12 @@ public class G6_MH_UsuarioService {
 
     @Autowired
     private G6_MH_EmailService emailService;
+
+    @Value("${mindhealth.app.base-url:http://localhost:8080}")
+    private String appBaseUrl;
+
+    @Value("${mindhealth.frontend.base-url:http://localhost:4200}")
+    private String frontendBaseUrl;
 
     // ==========================================
     // HU-01: REGISTRO Y ACTIVACIÓN DE CUENTA
@@ -125,7 +132,7 @@ public class G6_MH_UsuarioService {
     }
 
     private void enviarCorreoVerificacion(String correoDestino, String token) {
-        String enlaceActivacion = "http://localhost:8080/api/auth/verificar?token=" + token;
+        String enlaceActivacion = appBaseUrl + "/api/auth/verificar?token=" + token;
         emailService.enviarCorreo(
                 correoDestino,
                 "Confirma tu cuenta de Mind Health",
@@ -149,7 +156,7 @@ public class G6_MH_UsuarioService {
                 .build();
         tokenRepository.save(tokenRecuperacion);
 
-        String enlaceRecuperacion = "http://localhost:8080/api/auth/restablecer?token=" + tokenUUID;
+        String enlaceRecuperacion = frontendBaseUrl + "/restablecer-password?token=" + tokenUUID;
         emailService.enviarCorreo(
                 usuario.getCorreo(),
                 "Recuperación de contraseña — Mind Health",
